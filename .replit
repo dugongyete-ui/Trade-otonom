@@ -1,0 +1,7 @@
+[agent]
+expertMode = true
+
+[userenv]
+
+[userenv.shared]
+COHERE_API_KEY = "dSiKt22IuBoWi4VGoApoMHNVbKCJqoIn10DSbG0m"
