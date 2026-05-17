@@ -47,12 +47,34 @@ const MT5_STEPS = [
   'Pasang SL & TP setelah order terisi',
 ];
 
-export function CopyTradePanel({ signal }: { signal: Signal }) {
+function SignalSkeleton() {
+  const row = (w: string) => (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+      <div style={{ height: 10, width: '30%', borderRadius: 4, background: 'linear-gradient(90deg, var(--bg-card-2) 25%, var(--border) 50%, var(--bg-card-2) 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+      <div style={{ height: 14, width: w, borderRadius: 4, background: 'linear-gradient(90deg, var(--bg-card-2) 25%, var(--border) 50%, var(--bg-card-2) 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+    </div>
+  );
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ height: 36, borderRadius: 10, background: 'linear-gradient(90deg, var(--bg-card-2) 25%, var(--border) 50%, var(--bg-card-2) 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+      <div className="card" style={{ padding: '14px 16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+          <div style={{ height: 16, width: '35%', borderRadius: 4, background: 'linear-gradient(90deg, var(--bg-card-2) 25%, var(--border) 50%, var(--bg-card-2) 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+          <div style={{ height: 24, width: '20%', borderRadius: 20, background: 'linear-gradient(90deg, var(--bg-card-2) 25%, var(--border) 50%, var(--bg-card-2) 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+        </div>
+        {row('40%')} {row('35%')} {row('35%')} {row('20%')}
+      </div>
+    </div>
+  );
+}
+
+export function CopyTradePanel({ signal, loading }: { signal: Signal; loading?: boolean }) {
   const activeSignal = signal.hasSignal ? signal.signal : null;
   const display = activeSignal || signal.lastDecision;
   const hasActive = !!activeSignal;
 
   if (!display) {
+    if (loading) return <SignalSkeleton />;
     return (
       <div className="card" style={{ padding: '48px 20px', textAlign: 'center' }}>
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 12px' }}>

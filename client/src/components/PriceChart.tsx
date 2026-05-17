@@ -123,6 +123,18 @@ export function PriceChart({ currentPrice, activeSymbol = 'XAUUSD', signal }: Pr
     };
   }, []);
 
+  // Reset candle buffer when symbol changes to avoid cross-instrument bleed
+  useEffect(() => {
+    candlesRef.current = [];
+    lastPriceRef.current = null;
+    if (candleSeriesRef.current) {
+      try { candleSeriesRef.current.setData([]); } catch {}
+    }
+    if (entryLineRef.current) { try { entryLineRef.current.setData([]); } catch {} }
+    if (tpLineRef.current)    { try { tpLineRef.current.setData([]);    } catch {} }
+    if (slLineRef.current)    { try { slLineRef.current.setData([]);    } catch {} }
+  }, [activeSymbol]);
+
   useEffect(() => {
     if (!currentPrice || !candleSeriesRef.current || !isReady) return;
     const now = Date.now();

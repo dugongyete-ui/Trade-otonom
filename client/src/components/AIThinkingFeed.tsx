@@ -5,6 +5,7 @@ import { L } from '../lib/labels';
 interface Props {
   decisions: AIDecision[];
   isThinking: boolean;
+  loading?: boolean;
   marketStatus?: 'open' | 'closed' | 'unknown';
   activeSymbol?: 'XAUUSD' | 'V75';
   xauusdStatus?: 'open' | 'closed' | 'unknown';
@@ -85,10 +86,10 @@ function Card({ d, latest }: { d: AIDecision; latest: boolean }) {
       {/* Price pills */}
       {d.action !== 'HOLD' && (
         <div style={{ display: 'flex', gap: 6 }}>
-          <PricePill label="Entry" value={Number(d.entry).toFixed(2)} highlight />
-          <PricePill label="SL" value={Number(d.sl).toFixed(2)} />
-          <PricePill label="TP" value={Number(d.tp).toFixed(2)} />
-          <PricePill label="Lot" value={String(d.lot ?? '0.01')} />
+          <PricePill label="Harga Entry" value={Number(d.entry).toFixed(2)} highlight />
+          <PricePill label="Batas Rugi" value={Number(d.sl).toFixed(2)} />
+          <PricePill label="Batas Untung" value={Number(d.tp).toFixed(2)} />
+          <PricePill label="Ukuran Lot" value={String(d.lot ?? '0.01')} />
         </div>
       )}
 
@@ -115,7 +116,7 @@ function Card({ d, latest }: { d: AIDecision; latest: boolean }) {
           border: `1px solid ${d.trade_status === 'TP_HIT' ? 'rgba(0,214,143,.2)' : 'rgba(245,54,92,.2)'}`,
           color: d.trade_status === 'TP_HIT' ? 'var(--green)' : 'var(--red)',
         }}>
-          <span>{d.trade_status === 'TP_HIT' ? '✓ Take Profit' : '✗ Stop Loss'}</span>
+          <span>{d.trade_status === 'TP_HIT' ? '✓ Batas Untung Tercapai' : '✗ Batas Rugi Terkena'}</span>
           {d.trade_pnl !== undefined && (() => {
             const pnl = Number(d.trade_pnl);
             const abs = Math.abs(pnl).toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -159,7 +160,33 @@ function ThinkingCard() {
   );
 }
 
-export function AIThinkingFeed({ decisions, isThinking, marketStatus, activeSymbol = 'XAUUSD', xauusdStatus }: Props) {
+function FeedSkeleton() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {[1, 2].map(i => (
+        <div key={i} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ width: 44, height: 22, borderRadius: 6, background: 'linear-gradient(90deg, var(--bg-card-2) 25%, var(--border) 50%, var(--bg-card-2) 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+            <div style={{ width: 80, height: 14, borderRadius: 4, background: 'linear-gradient(90deg, var(--bg-card-2) 25%, var(--border) 50%, var(--bg-card-2) 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+          </div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {[1, 2, 3, 4].map(j => (
+              <div key={j} style={{ flex: 1, height: 44, borderRadius: 8, background: 'linear-gradient(90deg, var(--bg-card-2) 25%, var(--border) 50%, var(--bg-card-2) 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+            ))}
+          </div>
+          <div style={{ height: 8, borderRadius: 4, background: 'linear-gradient(90deg, var(--bg-card-2) 25%, var(--border) 50%, var(--bg-card-2) 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            {[1, 2, 3].map(j => (
+              <div key={j} style={{ height: 10, width: `${85 - j * 10}%`, borderRadius: 4, background: 'linear-gradient(90deg, var(--bg-card-2) 25%, var(--border) 50%, var(--bg-card-2) 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function AIThinkingFeed({ decisions, isThinking, loading, marketStatus, activeSymbol = 'XAUUSD', xauusdStatus }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (ref.current) ref.current.scrollTop = 0;
@@ -209,7 +236,9 @@ export function AIThinkingFeed({ decisions, isThinking, marketStatus, activeSymb
       <div ref={ref} style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, overflow: 'auto' }}>
         {isThinking && <ThinkingCard />}
 
-        {decisions.length === 0 && !isThinking && (
+        {decisions.length === 0 && !isThinking && loading && <FeedSkeleton />}
+
+        {decisions.length === 0 && !isThinking && !loading && (
           <div className="card" style={{ padding: '48px 20px', textAlign: 'center' }}>
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 12px' }}>
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>

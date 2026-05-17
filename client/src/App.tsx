@@ -72,8 +72,8 @@ export default function App() {
   const { data: initTrades,    refetch: refetchTrades,    loading: tradesLoading    } = useApi<{ trades: Trade[]; total: number }>(
     `/api/trades?page=${tradePage}&limit=${PAGE_SIZE}`, { trades: [], total: 0 }
   );
-  const { data: initSignal,    refetch: refetchSignal    } = useApi<Signal>('/api/current-signal', DEFAULT_SIGNAL);
-  const { data: initAiLog }                                = useApi<AIDecision[]>('/api/ai-log', []);
+  const { data: initSignal,    refetch: refetchSignal,    loading: signalLoading  } = useApi<Signal>('/api/current-signal', DEFAULT_SIGNAL);
+  const { data: initAiLog,                               loading: aiLogLoading   } = useApi<AIDecision[]>('/api/ai-log', []);
 
   const [portfolio,  setPortfolio ] = useState<PortfolioStats>(DEFAULT_PORTFOLIO);
   const [trades,     setTrades    ] = useState<Trade[]>([]);
@@ -211,8 +211,8 @@ export default function App() {
                 <StatisticsPanel />
               </div>
             )}
-            {tab === 'feed'      && <AIThinkingFeed decisions={decisions} isThinking={isThinking} marketStatus={mktStatus} activeSymbol={activeSymbol} xauusdStatus={xauusdStatus} />}
-            {tab === 'signal'    && <CopyTradePanel signal={signal} />}
+            {tab === 'feed'      && <AIThinkingFeed decisions={decisions} isThinking={isThinking} loading={aiLogLoading} marketStatus={mktStatus} activeSymbol={activeSymbol} xauusdStatus={xauusdStatus} />}
+            {tab === 'signal'    && <CopyTradePanel signal={signal} loading={signalLoading} />}
             {tab === 'history'   && <TradeHistoryTable trades={trades} loading={tradesLoading} page={tradePage} totalPages={totalPages} onPageChange={setTradePage} />}
           </div>
         ))}
@@ -243,10 +243,10 @@ export default function App() {
           <StatisticsPanel />
         </div>
         <div className="dmain">
-          <AIThinkingFeed decisions={decisions} isThinking={isThinking} marketStatus={mktStatus} activeSymbol={activeSymbol} xauusdStatus={xauusdStatus} />
+          <AIThinkingFeed decisions={decisions} isThinking={isThinking} loading={aiLogLoading} marketStatus={mktStatus} activeSymbol={activeSymbol} xauusdStatus={xauusdStatus} />
         </div>
         <div className="dcol">
-          <CopyTradePanel signal={signal} />
+          <CopyTradePanel signal={signal} loading={signalLoading} />
           <TradeHistoryTable trades={trades} loading={tradesLoading} page={tradePage} totalPages={totalPages} onPageChange={setTradePage} />
         </div>
       </div>
