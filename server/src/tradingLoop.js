@@ -62,17 +62,26 @@ async function runCycle() {
     await updateOpenTrades();
 
     const decision = await runAIDecision(broadcast);
-    const stats = await getPortfolioStats();
-    await savePortfolioSnapshot(stats);
 
     const derivData = getDerivMarketData();
     if (broadcast) {
-      broadcast({ type: 'ai_decision', data: decision });
-      broadcast({ type: 'portfolio_update', data: stats });
       broadcast({ type: 'market_status', data: { status: derivData.marketStatus, isConnected: derivData.isConnected, currentPrice: derivData.currentPrice } });
     }
 
-    console.log(`[Loop] Cycle: ${decision.action} @ ${decision.entry} (conf: ${decision.confidence}) [${decision.dataSource}]`);
+    if (!decision) {
+      console.log('[Loop] Cycle skipped — menunggu data Deriv live.');
+      return;
+    }
+
+    const stats = await getPortfolioStats();
+    await savePortfolioSnapshot(stats);
+
+    if (broadcast) {
+      broadcast({ type: 'ai_decision', data: decision });
+      broadcast({ type: 'portfolio_update', data: stats });
+    }
+
+    console.log(`[Loop] Cycle: ${decision.action} @ ${decision.entry} (conf: ${decision.confidence}) [deriv]`);
   } catch (err) {
     console.error('[Loop] Cycle error:', err.message);
     if (broadcast) broadcast({ type: 'error', data: { message: err.message } });

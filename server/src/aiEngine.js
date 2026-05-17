@@ -1,7 +1,6 @@
 import { CohereClient } from 'cohere-ai';
 import { query } from './db.js';
 import { getDerivMarketData, getMarketStatus } from './derivService.js';
-import { generateM5Candles, generateM15Candles } from './marketData.js';
 import { getMacroData, getUpcomingEvents, getRecentHeadlines, formatMacroSection, formatEventsSection } from './macroData.js';
 
 const cohere = new CohereClient({ token: process.env.COHERE_API_KEY });
@@ -151,17 +150,13 @@ export async function runAIDecision(broadcast) {
     const derivData = getDerivMarketData();
     const marketStatusNow = getMarketStatus();
 
-    let m5, m15;
-
-    if (derivData.m5Candles.length >= 5) {
-      m5 = derivData.m5Candles;
-      m15 = derivData.m15Candles.length >= 3 ? derivData.m15Candles : generateM15Candles(10);
-    } else {
-      console.log('[AI] Using simulated candles (Deriv data unavailable)');
-      m5 = generateM5Candles(10);
-      m15 = generateM15Candles(10);
+    if (derivData.m5Candles.length < 5) {
+      console.log('[AI] Deriv data belum tersedia — cycle dilewati, menunggu data live.');
+      return null;
     }
 
+    const m5 = derivData.m5Candles;
+    const m15 = derivData.m15Candles;
     const currentGoldPrice = derivData.currentPrice || parseFloat(m5[m5.length - 1]?.close || 0);
     const macro = getMacroData(currentGoldPrice);
 
