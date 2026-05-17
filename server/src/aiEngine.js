@@ -1,6 +1,6 @@
 import { CohereClient } from 'cohere-ai';
 import { query } from './db.js';
-import { getDerivMarketData, getMarketStatus } from './derivService.js';
+import { getActiveMarketData, getActiveSymbol, SYMBOL_CONFIG } from './derivService.js';
 import { getMacroData, getUpcomingEvents, getRecentHeadlines, formatMacroSection, formatEventsSection } from './macroData.js';
 
 const cohere = new CohereClient({ token: process.env.COHERE_API_KEY });
@@ -38,30 +38,29 @@ CONFIDENCE MAPPING (Data-driven):
 - <0.5: "Kondisi tidak ideal, lindungi modal utama (HOLD)"`;
 
 function formatCandleTable(candles) {
-  if (!candles || candles.length === 0) return '(Tidak ada data candle)';
-  const header = 'Time   | Open   | High   | Low    | Close  |';
-  const divider = '------------------------------------------------';
+  if (!candles || candles.length === 0) return '(Data tidak tersedia)';
+  const header  = 'Time   | Open     | High     | Low      | Close    |';
+  const divider = '──────────────────────────────────────────────────────';
   const rows = candles.map(c => {
     const time = c.time
       ? new Date(c.time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })
       : '00:00';
-    const fmt = (n) => parseFloat(n).toFixed(2).padStart(7);
-    return `${time}  | ${fmt(c.open)}| ${fmt(c.high)}| ${fmt(c.low)}| ${fmt(c.close)}|`;
+    const fmt = (n) => parseFloat(n).toFixed(2).padStart(9);
+    return `${time}  |${fmt(c.open)}|${fmt(c.high)}|${fmt(c.low)}|${fmt(c.close)}|`;
   });
   return [header, divider, ...rows].join('\n');
 }
 
 function buildTechnicalSummary(candles, label) {
-  if (!candles || candles.length === 0) return `${label}: No data available.`;
+  if (!candles || candles.length === 0) return `${label}: Data tidak tersedia.`;
   const closes = candles.map(c => parseFloat(c.close));
-  const highs = candles.map(c => parseFloat(c.high));
-  const lows = candles.map(c => parseFloat(c.low));
-  const support = Math.min(...lows).toFixed(2);
+  const highs  = candles.map(c => parseFloat(c.high));
+  const lows   = candles.map(c => parseFloat(c.low));
+  const support    = Math.min(...lows).toFixed(2);
   const resistance = Math.max(...highs).toFixed(2);
-  const current = closes[closes.length - 1].toFixed(3);
-  const trend = closes[closes.length - 1] > closes[0] ? 'BULLISH' : 'BEARISH';
-  const rangePips = ((Math.max(...highs) - Math.min(...lows)) * 10).toFixed(1);
-
+  const current    = closes[closes.length - 1].toFixed(3);
+  const trend      = closes[closes.length - 1] > closes[0] ? 'BULLISH' : 'BEARISH';
+  const rangePips  = ((Math.max(...highs) - Math.min(...lows)) * 10).toFixed(1);
   return `- Support Level: ${support}
 - Resistance Level: ${resistance}
 - Current Close: ${current}
@@ -69,9 +68,11 @@ function buildTechnicalSummary(candles, label) {
 - Range: ${rangePips} pips`;
 }
 
-function buildPrompt(m5Candles, m15Candles, macro, lastTrade, marketStatus) {
+function buildPrompt(symbol, m5Candles, m15Candles, macro, lastTrade) {
+  const cfg = SYMBOL_CONFIG[symbol] || SYMBOL_CONFIG.XAUUSD;
+  const isV75 = symbol === 'V75';
   const currentClose = m5Candles.length > 0
-    ? parseFloat(m5Candles[m5Candles.length - 1].close).toFixed(3)
+    ? parseFloat(m5Candles[m5Candles.length - 1].close).toFixed(isV75 ? 3 : 3)
     : 'N/A';
 
   const lastTradeSection = lastTrade
@@ -87,42 +88,44 @@ Entry: ${lastTrade.entry} | Close: ${lastTrade.close_price || 0} | SL: ${lastTra
 - Base your reflection ONLY on the data above, not imagination
 
 Fill "reflection" field with SHORT factual analysis (2-3 sentences max).`
-    : '🧠 LAST TRADE RESULT: No previous trade on record.';
+    : '🧠 LAST TRADE RESULT: Tidak ada trade sebelumnya.';
 
-  const marketStatusNote = marketStatus === 'closed'
-    ? '\n⚠️ CATATAN: Market XAUUSD sedang TUTUP (akhir pekan/libur). Analisis berdasarkan data historis terakhir.'
-    : '';
-
-  const events = getUpcomingEvents();
-  const headlines = getRecentHeadlines();
-
-  return `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  const marketContextSection = isV75
+    ? `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 KONTEKS MARKET
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ MODE AKTIF: Volatility 75 Index (R_75) — Synthetic Index Deriv
+Market XAUUSD sedang TUTUP. DzeckAI beroperasi pada Synthetic Index yang tersedia 24/7.
+Synthetic Index TIDAK dipengaruhi oleh berita makro, event ekonomi, atau geopolitik.
+Analisis murni TEKNIKAL berdasarkan price action dan struktur candle.`
+    : `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📊 MARKET INTELLIGENCE (MACRO & NEWS)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-${marketStatusNote}
-
 ${formatMacroSection(macro)}
 
 🗓 UPCOMING ECONOMIC EVENTS:
-${formatEventsSection(events)}
+${formatEventsSection(getUpcomingEvents())}
 
 📰 RECENT HEADLINES:
-${headlines.map(h => `- ${h}`).join('\n')}
+${getRecentHeadlines().map(h => `- ${h}`).join('\n')}`;
+
+  return `${marketContextSection}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📂 ASSET MENU (CHOOSE 1 TO TRADE)
+📂 INSTRUMEN AKTIF
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🔥 OPTION: XAUUSD | Current Price: ${currentClose}
+🔥 ${cfg.displayName} (${cfg.fullName}) | Current Price: ${currentClose}
+${isV75 ? 'Type: Synthetic Index | Volatility: High | Jam: 24/7' : 'Type: Commodity / Forex | XAU/USD Spot'}
 
 📉 M5 TECHNICAL SUMMARY:
 ${buildTechnicalSummary(m5Candles, 'M5')}
 
-📊 XAUUSD M5 (Last 10 candles):
+📊 ${cfg.displayName} M5 (Last 10 candles):
 
 ${formatCandleTable(m5Candles)}
 
-📊 XAUUSD M15 (Last 10 candles):
+📊 ${cfg.displayName} M15 (Last 10 candles):
 
 ${formatCandleTable(m15Candles)}
 
@@ -133,56 +136,49 @@ INSTRUKSI OUTPUT:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Respond with ONLY valid JSON — no markdown, no code fences, no prose:
 
-{"reflection":null,"symbol":"XAUUSD","strategy":"string","reasoning":"string (professional Indonesian per DzeckAi style)","action":"BUY|SELL|HOLD","entry":number,"sl":number,"tp":number,"lot":0.01,"confidence":number}
+{"reflection":null,"symbol":"${isV75 ? 'Volatility 75 Index' : 'XAUUSD'}","strategy":"string","reasoning":"string (professional Indonesian per DzeckAi style)","action":"BUY|SELL|HOLD","entry":number,"sl":number,"tp":number,"lot":0.01,"confidence":number}
 
 Rules:
 - reflection: null if no loss on last trade, or 2-3 sentence factual Indonesian analysis if SL_HIT
 - action HOLD: still fill entry/sl/tp with monitored levels
 - confidence: 0.0-1.0 per the CONFIDENCE MAPPING above
-- If market is closed, action MUST be HOLD with confidence < 0.5
-- lot: always 0.01 (fixed for risk management)`;
+- lot: always 0.01 (fixed for risk management)
+${isV75 ? '- SL/TP: Set reasonable levels based on V75 volatility (typical range 50-300 points from entry)' : '- SL/TP: Set reasonable levels based on XAUUSD volatility'}`;
 }
 
 export async function runAIDecision(broadcast) {
   console.log('[AI] Starting decision cycle...');
 
   try {
-    const derivData = getDerivMarketData();
-    const marketStatusNow = getMarketStatus();
+    const activeData   = getActiveMarketData();
+    const activeSymbol = getActiveSymbol();
+    const { m5Candles, m15Candles, currentPrice, marketStatus } = activeData;
 
-    if (derivData.m5Candles.length < 5) {
-      console.log('[AI] Deriv data belum tersedia — cycle dilewati, menunggu data live.');
+    if (m5Candles.length < 5) {
+      console.log('[AI] Data market belum tersedia — cycle dilewati, menunggu data live.');
       return null;
     }
 
-    const m5 = derivData.m5Candles;
-    const m15 = derivData.m15Candles;
-    const currentGoldPrice = derivData.currentPrice || parseFloat(m5[m5.length - 1]?.close || 0);
-    const macro = getMacroData(currentGoldPrice);
+    const macro = activeSymbol === 'XAUUSD'
+      ? getMacroData(currentPrice || parseFloat(m5Candles[m5Candles.length - 1]?.close || 0))
+      : null;
 
     await query(
       `INSERT INTO market_snapshots (symbol, timeframe, candle_data, macro_data) VALUES ($1, $2, $3, $4)`,
-      ['XAUUSD', 'M5+M15', JSON.stringify({ m5, m15 }), JSON.stringify(macro)]
+      [activeSymbol, 'M5+M15', JSON.stringify({ m5Candles, m15Candles }), macro ? JSON.stringify(macro) : null]
     );
 
-    const recentTradesRes = await query(
-      `SELECT * FROM trades ORDER BY open_time DESC LIMIT 5`
-    );
-    const recentTrades = recentTradesRes.rows;
-    const lastTrade = recentTrades[0] || null;
+    const recentTradesRes = await query(`SELECT * FROM trades ORDER BY open_time DESC LIMIT 5`);
+    const lastTrade = recentTradesRes.rows[0] || null;
 
-    const prompt = buildPrompt(m5, m15, macro, lastTrade, marketStatusNow);
+    const prompt = buildPrompt(activeSymbol, m5Candles, m15Candles, macro, lastTrade);
 
     if (broadcast) {
-      broadcast({
-        type: 'ai_thinking',
-        data: { status: 'thinking', marketStatus: marketStatusNow, timestamp: new Date().toISOString() }
-      });
+      broadcast({ type: 'ai_thinking', data: { status: 'thinking', activeSymbol, marketStatus, timestamp: new Date().toISOString() } });
     }
 
-    let responseText = '';
-    let attempt = 0;
     let parsed = null;
+    let attempt = 0;
 
     while (attempt < 3 && !parsed) {
       attempt++;
@@ -192,20 +188,17 @@ export async function runAIDecision(broadcast) {
           message: prompt,
           preamble: SYSTEM_PROMPT,
           temperature: 0.25,
-          maxTokens: 900
+          maxTokens: 900,
         });
 
-        responseText = response.text.trim();
-
+        const responseText = response.text.trim();
         parsed = JSON.parse(responseText);
 
         const required = ['symbol', 'strategy', 'reasoning', 'action', 'entry', 'sl', 'tp', 'confidence'];
         for (const field of required) {
           if (parsed[field] === undefined) throw new Error(`Missing field: ${field}`);
         }
-        if (!['BUY', 'SELL', 'HOLD'].includes(parsed.action)) {
-          throw new Error(`Invalid action: ${parsed.action}`);
-        }
+        if (!['BUY', 'SELL', 'HOLD'].includes(parsed.action)) throw new Error(`Invalid action: ${parsed.action}`);
       } catch (err) {
         console.error(`[AI] Attempt ${attempt} failed: ${err.message}`);
         if (attempt >= 3) throw err;
@@ -233,20 +226,13 @@ export async function runAIDecision(broadcast) {
     }
 
     await query(
-      `INSERT INTO ai_decisions
-         (trade_id, symbol, action, entry, sl, tp, confidence, reasoning_text, reflection, strategy)
+      `INSERT INTO ai_decisions (trade_id, symbol, action, entry, sl, tp, confidence, reasoning_text, reflection, strategy)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
       [tradeId, parsed.symbol, parsed.action, parsed.entry, parsed.sl, parsed.tp,
        parsed.confidence, parsed.reasoning, parsed.reflection || null, parsed.strategy]
     );
 
-    return {
-      ...parsed,
-      lot,
-      tradeId,
-      marketStatus: marketStatusNow,
-      dataSource: derivData.m5Candles.length >= 5 ? 'deriv' : 'simulated'
-    };
+    return { ...parsed, lot, tradeId, activeSymbol, marketStatus, dataSource: 'deriv' };
   } catch (err) {
     console.error('[AI] Decision cycle error:', err.message);
     throw err;

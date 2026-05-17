@@ -1,7 +1,7 @@
 import express from 'express';
 import { query } from './db.js';
 import { getPortfolioStats } from './portfolio.js';
-import { getDerivMarketData } from './derivService.js';
+import { getActiveMarketData, getActiveSymbol, getXAUUSDStatus } from './derivService.js';
 
 const router = express.Router();
 
@@ -12,8 +12,8 @@ router.get('/portfolio', async (req, res) => {
 
 router.get('/trades', async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 15;
+    const page   = parseInt(req.query.page)  || 1;
+    const limit  = parseInt(req.query.limit) || 15;
     const offset = (page - 1) * limit;
     const result = await query(
       `SELECT t.*, d.reasoning_text AS reasoning, d.confidence
@@ -23,7 +23,12 @@ router.get('/trades', async (req, res) => {
       [limit, offset]
     );
     const countRes = await query(`SELECT COUNT(*) FROM trades`);
-    res.json({ trades: result.rows, total: parseInt(countRes.rows[0].count), page, totalPages: Math.ceil(parseInt(countRes.rows[0].count) / limit) });
+    res.json({
+      trades: result.rows,
+      total: parseInt(countRes.rows[0].count),
+      page,
+      totalPages: Math.ceil(parseInt(countRes.rows[0].count) / limit),
+    });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -63,8 +68,17 @@ router.get('/ai-log', async (req, res) => {
 
 router.get('/market-status', async (req, res) => {
   try {
-    const data = getDerivMarketData();
-    res.json({ status: data.marketStatus, isConnected: data.isConnected, currentPrice: data.currentPrice, symbol: 'XAUUSD', dataSource: 'Deriv WebSocket' });
+    const data         = getActiveMarketData();
+    const activeSymbol = getActiveSymbol();
+    const xauusdStatus = getXAUUSDStatus();
+    res.json({
+      status: data.marketStatus,
+      isConnected: data.isConnected,
+      currentPrice: data.currentPrice,
+      activeSymbol,
+      xauusdStatus,
+      dataSource: 'Deriv WebSocket',
+    });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

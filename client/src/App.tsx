@@ -58,11 +58,12 @@ const TABS: { tab: Tab; label: string }[] = [
 
 export default function App() {
   const { status: wsStatus, lastMessage } = useWebSocket(getWsUrl());
-  const [activeTab, setActiveTab] = useState<Tab>('feed');
+  const [activeTab, setActiveTab]   = useState<Tab>('feed');
   const [tradePage, setTradePage]   = useState(1);
   const [tradeTotal, setTradeTotal] = useState(0);
   const [derivStatus, setDerivStatus] = useState<DerivMarketStatus>({
     status: 'unknown', isConnected: false, currentPrice: null,
+    activeSymbol: 'XAUUSD', xauusdStatus: 'unknown',
   });
 
   const { data: initPortfolio, refetch: refetchPortfolio } = useApi<PortfolioStats>('/api/portfolio', DEFAULT_PORTFOLIO);
@@ -70,7 +71,7 @@ export default function App() {
     `/api/trades?page=${tradePage}&limit=${PAGE_SIZE}`, { trades: [], total: 0 }
   );
   const { data: initSignal,    refetch: refetchSignal    } = useApi<Signal>('/api/current-signal', DEFAULT_SIGNAL);
-  const { data: initAiLog } = useApi<AIDecision[]>('/api/ai-log', []);
+  const { data: initAiLog }                                = useApi<AIDecision[]>('/api/ai-log', []);
 
   const [portfolio,  setPortfolio ] = useState<PortfolioStats>(DEFAULT_PORTFOLIO);
   const [trades,     setTrades    ] = useState<Trade[]>([]);
@@ -78,10 +79,10 @@ export default function App() {
   const [decisions,  setDecisions ] = useState<AIDecision[]>([]);
   const [isThinking, setIsThinking] = useState(false);
 
-  useEffect(() => { if (initPortfolio?.balance)       setPortfolio(initPortfolio); }, [initPortfolio]);
-  useEffect(() => { if (initTrades?.trades) { setTrades(initTrades.trades); setTradeTotal(initTrades.total ?? 0); } }, [initTrades]);
-  useEffect(() => { if (initSignal)                   setSignal(initSignal);  }, [initSignal]);
-  useEffect(() => { if (initAiLog?.length > 0)        setDecisions(initAiLog); }, [initAiLog]);
+  useEffect(() => { if (initPortfolio?.balance)   setPortfolio(initPortfolio); }, [initPortfolio]);
+  useEffect(() => { if (initTrades?.trades)        { setTrades(initTrades.trades); setTradeTotal(initTrades.total ?? 0); } }, [initTrades]);
+  useEffect(() => { if (initSignal)                setSignal(initSignal);  }, [initSignal]);
+  useEffect(() => { if (initAiLog?.length > 0)     setDecisions(initAiLog); }, [initAiLog]);
 
   const refetchAll = useCallback(() => {
     refetchPortfolio(); refetchTrades(); refetchSignal();
@@ -90,15 +91,24 @@ export default function App() {
   useEffect(() => {
     if (!lastMessage) return;
     const { type, data } = lastMessage;
-    if (type === 'ai_thinking')    setIsThinking(true);
+    if (type === 'ai_thinking')     setIsThinking(true);
     if (type === 'ai_decision') {
       setIsThinking(false);
       setDecisions(prev => [data as AIDecision, ...prev].slice(0, 50));
       refetchSignal();
     }
     if (type === 'portfolio_update') setPortfolio(data as PortfolioStats);
-    if (type === 'trade_update')  { setIsThinking(false); refetchTrades(); refetchSignal(); }
-    if (type === 'market_status') setDerivStatus(data as DerivMarketStatus);
+    if (type === 'trade_update')    { setIsThinking(false); refetchTrades(); refetchSignal(); }
+    if (type === 'market_status') {
+      const d = data as { status: string; isConnected: boolean; currentPrice: number | null; activeSymbol?: string; xauusdStatus?: string };
+      setDerivStatus({
+        status: d.status as DerivMarketStatus['status'],
+        isConnected: d.isConnected,
+        currentPrice: d.currentPrice,
+        activeSymbol: (d.activeSymbol as DerivMarketStatus['activeSymbol']) || 'XAUUSD',
+        xauusdStatus: (d.xauusdStatus as DerivMarketStatus['xauusdStatus']) || 'unknown',
+      });
+    }
   }, [lastMessage, refetchSignal, refetchTrades]);
 
   useEffect(() => {
@@ -109,12 +119,20 @@ export default function App() {
   useEffect(() => {
     fetch('/api/market-status')
       .then(r => r.json())
-      .then(d => setDerivStatus({ status: d.status, isConnected: d.isConnected, currentPrice: d.currentPrice }))
+      .then(d => setDerivStatus({
+        status: d.status,
+        isConnected: d.isConnected,
+        currentPrice: d.currentPrice,
+        activeSymbol: d.activeSymbol || 'XAUUSD',
+        xauusdStatus: d.xauusdStatus || 'unknown',
+      }))
       .catch(() => {});
   }, []);
 
-  const totalPages = Math.max(1, Math.ceil(tradeTotal / PAGE_SIZE));
-  const mktStatus  = derivStatus.status as MarketStatus;
+  const totalPages   = Math.max(1, Math.ceil(tradeTotal / PAGE_SIZE));
+  const mktStatus    = derivStatus.status as MarketStatus;
+  const activeSymbol = derivStatus.activeSymbol;
+  const xauusdStatus = derivStatus.xauusdStatus;
 
   return (
     <div className="shell">
@@ -124,6 +142,8 @@ export default function App() {
         marketStatus={mktStatus}
         derivConnected={derivStatus.isConnected}
         currentPrice={derivStatus.currentPrice}
+        activeSymbol={activeSymbol}
+        xauusdStatus={xauusdStatus}
       />
 
       {/* ── Mobile: tab panels ── */}
@@ -131,7 +151,7 @@ export default function App() {
         {TABS.map(({ tab }) => (
           <div key={tab} className={`panel${activeTab === tab ? ' on' : ''}`}>
             {tab === 'portfolio' && <PortfolioPanel stats={portfolio} />}
-            {tab === 'feed'      && <AIThinkingFeed decisions={decisions} isThinking={isThinking} marketStatus={mktStatus} />}
+            {tab === 'feed'      && <AIThinkingFeed decisions={decisions} isThinking={isThinking} marketStatus={mktStatus} activeSymbol={activeSymbol} xauusdStatus={xauusdStatus} />}
             {tab === 'signal'    && <CopyTradePanel signal={signal} />}
             {tab === 'history'   && <TradeHistoryTable trades={trades} page={tradePage} totalPages={totalPages} onPageChange={setTradePage} />}
           </div>
@@ -154,7 +174,7 @@ export default function App() {
           <PortfolioPanel stats={portfolio} />
         </div>
         <div className="dmain">
-          <AIThinkingFeed decisions={decisions} isThinking={isThinking} marketStatus={mktStatus} />
+          <AIThinkingFeed decisions={decisions} isThinking={isThinking} marketStatus={mktStatus} activeSymbol={activeSymbol} xauusdStatus={xauusdStatus} />
         </div>
         <div className="dcol">
           <CopyTradePanel signal={signal} />

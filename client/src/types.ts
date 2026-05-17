@@ -1,6 +1,7 @@
 export type TradeAction = 'BUY' | 'SELL' | 'HOLD';
 export type TradeStatus = 'OPEN' | 'TP_HIT' | 'SL_HIT' | 'CLOSED';
 export type MarketStatus = 'open' | 'closed' | 'unknown';
+export type ActiveSymbol = 'XAUUSD' | 'V75';
 
 export interface Trade {
   id: number;
@@ -39,7 +40,8 @@ export interface AIDecision {
   trade_status?: TradeStatus;
   trade_pnl?: number;
   marketStatus?: MarketStatus;
-  dataSource?: 'deriv' | 'simulated';
+  activeSymbol?: ActiveSymbol;
+  dataSource?: 'deriv';
 }
 
 export interface PortfolioStats {
@@ -84,4 +86,6 @@ export interface DerivMarketStatus {
   status: MarketStatus;
   isConnected: boolean;
   currentPrice: number | null;
+  activeSymbol: ActiveSymbol;
+  xauusdStatus: MarketStatus;
 }

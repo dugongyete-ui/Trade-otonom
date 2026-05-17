@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 export type WSMessage = {
-  type: 'connected' | 'ai_thinking' | 'ai_decision' | 'trade_update' | 'portfolio_update' | 'error';
+  type: 'connected' | 'ai_thinking' | 'ai_decision' | 'trade_update' | 'portfolio_update' | 'market_status' | 'error';
   data: unknown;
 };
 

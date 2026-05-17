@@ -1,51 +1,62 @@
 import { query } from './db.js';
 import { runAIDecision } from './aiEngine.js';
 import { getPortfolioStats, savePortfolioSnapshot } from './portfolio.js';
-import { simulatePriceMovement, getCurrentPrice } from './marketData.js';
-import { getDerivMarketData, getMarketStatus } from './derivService.js';
+import { getActiveMarketData, getActiveSymbol, getPipMultiplier, getCurrentDerivPrice } from './derivService.js';
 
-let broadcast = null;
+let broadcast    = null;
 let loopInterval = null;
 let priceInterval = null;
 
-export function setBroadcast(fn) {
-  broadcast = fn;
+export function setBroadcast(fn) { broadcast = fn; }
+
+function getPriceForSymbol(tradeSymbol) {
+  const active = getActiveMarketData();
+  // Use active price regardless of symbol (best available)
+  return active.currentPrice || getCurrentDerivPrice() || null;
 }
 
 async function updateOpenTrades() {
   const openTrades = await query(`SELECT * FROM trades WHERE status = 'OPEN'`);
   for (const trade of openTrades.rows) {
-    const currentPx = getCurrentPrice();
-    const { status, closePrice } = simulatePriceMovement(
-      parseFloat(trade.entry),
-      trade.action,
-      parseFloat(trade.sl),
-      parseFloat(trade.tp),
-      currentPx
-    );
+    const currentPx = getPriceForSymbol(trade.symbol);
+    if (!currentPx) continue;
 
-    let openPnl = 0;
-    const lot = parseFloat(trade.lot) || 0.01;
+    // Determine pip multiplier based on trade's symbol
+    const sym = trade.symbol?.includes('Volatility') || trade.symbol === 'V75' ? 'V75' : 'XAUUSD';
+    const pipMult = getPipMultiplier(sym);
+    const lot     = parseFloat(trade.lot) || 0.01;
+
+    const entry = parseFloat(trade.entry);
+    const sl    = parseFloat(trade.sl);
+    const tp    = parseFloat(trade.tp);
+
+    // Check TP/SL hit
+    let status     = 'OPEN';
+    let closePrice = null;
+
     if (trade.action === 'BUY') {
-      openPnl = parseFloat(((currentPx - parseFloat(trade.entry)) * 100 * lot).toFixed(2));
+      if (currentPx >= tp) { status = 'TP_HIT'; closePrice = tp; }
+      else if (currentPx <= sl) { status = 'SL_HIT'; closePrice = sl; }
     } else if (trade.action === 'SELL') {
-      openPnl = parseFloat(((parseFloat(trade.entry) - currentPx) * 100 * lot).toFixed(2));
+      if (currentPx <= tp) { status = 'TP_HIT'; closePrice = tp; }
+      else if (currentPx >= sl) { status = 'SL_HIT'; closePrice = sl; }
     }
 
+    // Open PnL
+    let openPnl = 0;
+    if (trade.action === 'BUY')  openPnl = parseFloat(((currentPx - entry) * pipMult * lot).toFixed(2));
+    else if (trade.action === 'SELL') openPnl = parseFloat(((entry - currentPx) * pipMult * lot).toFixed(2));
+
     if (status !== 'OPEN') {
-      let pnl = 0;
-      if (trade.action === 'BUY') {
-        pnl = parseFloat(((closePrice - parseFloat(trade.entry)) * 100 * lot).toFixed(2));
-      } else {
-        pnl = parseFloat(((parseFloat(trade.entry) - closePrice) * 100 * lot).toFixed(2));
-      }
+      const pnl = trade.action === 'BUY'
+        ? parseFloat(((closePrice - entry) * pipMult * lot).toFixed(2))
+        : parseFloat(((entry - closePrice) * pipMult * lot).toFixed(2));
 
       await query(
         `UPDATE trades SET status=$1, close_time=NOW(), close_price=$2, pnl=$3, open_pnl=0 WHERE id=$4`,
         [status, closePrice, pnl, trade.id]
       );
-
-      console.log(`[Loop] Trade ${trade.id} closed: ${status}, PnL: ${pnl}`);
+      console.log(`[Loop] Trade ${trade.id} (${trade.symbol}) closed: ${status}, PnL: $${pnl}`);
 
       if (broadcast) {
         broadcast({ type: 'trade_update', data: { tradeId: trade.id, status, closePrice, pnl, action: trade.action, symbol: trade.symbol } });
@@ -61,15 +72,25 @@ async function runCycle() {
   try {
     await updateOpenTrades();
 
-    const decision = await runAIDecision(broadcast);
+    const decision   = await runAIDecision(broadcast);
+    const activeData = getActiveMarketData();
+    const activeSymbol = getActiveSymbol();
 
-    const derivData = getDerivMarketData();
     if (broadcast) {
-      broadcast({ type: 'market_status', data: { status: derivData.marketStatus, isConnected: derivData.isConnected, currentPrice: derivData.currentPrice } });
+      broadcast({
+        type: 'market_status',
+        data: {
+          status: activeData.marketStatus,
+          isConnected: activeData.isConnected,
+          currentPrice: activeData.currentPrice,
+          activeSymbol,
+          xauusdStatus: activeData.xauusdStatus,
+        },
+      });
     }
 
     if (!decision) {
-      console.log('[Loop] Cycle skipped — menunggu data Deriv live.');
+      console.log('[Loop] Cycle skipped — menunggu data live.');
       return;
     }
 
@@ -81,7 +102,7 @@ async function runCycle() {
       broadcast({ type: 'portfolio_update', data: stats });
     }
 
-    console.log(`[Loop] Cycle: ${decision.action} @ ${decision.entry} (conf: ${decision.confidence}) [deriv]`);
+    console.log(`[Loop] Cycle: ${decision.action} ${activeSymbol} @ ${decision.entry} (conf: ${decision.confidence})`);
   } catch (err) {
     console.error('[Loop] Cycle error:', err.message);
     if (broadcast) broadcast({ type: 'error', data: { message: err.message } });
@@ -96,11 +117,21 @@ export function startTradingLoop() {
   priceInterval = setInterval(async () => {
     try {
       await updateOpenTrades();
-      const stats = await getPortfolioStats();
-      const derivData = getDerivMarketData();
+      const stats      = await getPortfolioStats();
+      const activeData = getActiveMarketData();
+      const activeSymbol = getActiveSymbol();
       if (broadcast) {
         broadcast({ type: 'portfolio_update', data: stats });
-        broadcast({ type: 'market_status', data: { status: derivData.marketStatus, isConnected: derivData.isConnected, currentPrice: derivData.currentPrice } });
+        broadcast({
+          type: 'market_status',
+          data: {
+            status: activeData.marketStatus,
+            isConnected: activeData.isConnected,
+            currentPrice: activeData.currentPrice,
+            activeSymbol,
+            xauusdStatus: activeData.xauusdStatus,
+          },
+        });
       }
     } catch (err) {
       console.error('[Loop] Price update error:', err.message);
@@ -109,6 +140,6 @@ export function startTradingLoop() {
 }
 
 export function stopTradingLoop() {
-  if (loopInterval) clearInterval(loopInterval);
+  if (loopInterval)  clearInterval(loopInterval);
   if (priceInterval) clearInterval(priceInterval);
 }

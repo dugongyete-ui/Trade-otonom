@@ -5,6 +5,8 @@ interface Props {
   decisions: AIDecision[];
   isThinking: boolean;
   marketStatus?: 'open' | 'closed' | 'unknown';
+  activeSymbol?: 'XAUUSD' | 'V75';
+  xauusdStatus?: 'open' | 'closed' | 'unknown';
 }
 
 function Badge({ action }: { action: string }) {
@@ -149,7 +151,7 @@ function ThinkingCard() {
   );
 }
 
-export function AIThinkingFeed({ decisions, isThinking, marketStatus }: Props) {
+export function AIThinkingFeed({ decisions, isThinking, marketStatus, activeSymbol = 'XAUUSD', xauusdStatus }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (ref.current) ref.current.scrollTop = 0;
@@ -173,15 +175,25 @@ export function AIThinkingFeed({ decisions, isThinking, marketStatus }: Props) {
         </div>
       </div>
 
-      {/* Market closed banner */}
-      {marketStatus === 'closed' && (
+      {/* Market status banner */}
+      {activeSymbol === 'V75' && (
+        <div style={{
+          padding: '9px 13px', borderRadius: 9, fontSize: 12,
+          background: 'rgba(139,92,246,.07)', border: '1px solid rgba(139,92,246,.2)',
+          display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, flexWrap: 'wrap',
+        }}>
+          <span style={{ color: '#a78bfa', fontWeight: 700, flexShrink: 0 }}>V75 Aktif</span>
+          <span style={{ color: 'var(--text-2)' }}>— XAUUSD tutup, AI beralih ke Volatility 75 Index (Deriv Synthetic 24/7)</span>
+        </div>
+      )}
+      {activeSymbol === 'XAUUSD' && xauusdStatus === 'closed' && (
         <div style={{
           padding: '9px 13px', borderRadius: 9, fontSize: 12,
           background: 'rgba(245,54,92,.06)', border: '1px solid rgba(245,54,92,.15)',
           display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-2)', flexShrink: 0,
         }}>
-          <span style={{ color: 'var(--red)', fontWeight: 700 }}>Market Tutup</span>
-          <span>— AI standby, menunggu XAUUSD buka</span>
+          <span style={{ color: 'var(--red)', fontWeight: 700 }}>XAUUSD Tutup</span>
+          <span>— Menunggu konfirmasi market terbuka</span>
         </div>
       )}
 
