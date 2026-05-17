@@ -68,8 +68,8 @@ export default function App() {
     activeSymbol: 'XAUUSD', xauusdStatus: 'unknown',
   });
 
-  const { data: initPortfolio, refetch: refetchPortfolio } = useApi<PortfolioStats>('/api/portfolio', DEFAULT_PORTFOLIO);
-  const { data: initTrades,    refetch: refetchTrades    } = useApi<{ trades: Trade[]; total: number }>(
+  const { data: initPortfolio, refetch: refetchPortfolio, loading: portfolioLoading } = useApi<PortfolioStats>('/api/portfolio', DEFAULT_PORTFOLIO);
+  const { data: initTrades,    refetch: refetchTrades,    loading: tradesLoading    } = useApi<{ trades: Trade[]; total: number }>(
     `/api/trades?page=${tradePage}&limit=${PAGE_SIZE}`, { trades: [], total: 0 }
   );
   const { data: initSignal,    refetch: refetchSignal    } = useApi<Signal>('/api/current-signal', DEFAULT_SIGNAL);
@@ -197,13 +197,13 @@ export default function App() {
                 <div style={{ height: 220, minHeight: 180 }}>
                   <PriceChart currentPrice={derivStatus.currentPrice} activeSymbol={activeSymbol} signal={signal} />
                 </div>
-                <PortfolioPanel stats={portfolio} />
+                <PortfolioPanel stats={portfolio} loading={portfolioLoading} />
                 <StatisticsPanel />
               </div>
             )}
             {tab === 'feed'      && <AIThinkingFeed decisions={decisions} isThinking={isThinking} marketStatus={mktStatus} activeSymbol={activeSymbol} xauusdStatus={xauusdStatus} />}
             {tab === 'signal'    && <CopyTradePanel signal={signal} />}
-            {tab === 'history'   && <TradeHistoryTable trades={trades} page={tradePage} totalPages={totalPages} onPageChange={setTradePage} />}
+            {tab === 'history'   && <TradeHistoryTable trades={trades} loading={tradesLoading} page={tradePage} totalPages={totalPages} onPageChange={setTradePage} />}
           </div>
         ))}
       </div>
@@ -229,7 +229,7 @@ export default function App() {
           <div style={{ height: 240, flexShrink: 0 }}>
             <PriceChart currentPrice={derivStatus.currentPrice} activeSymbol={activeSymbol} signal={signal} />
           </div>
-          <PortfolioPanel stats={portfolio} />
+          <PortfolioPanel stats={portfolio} loading={portfolioLoading} />
           <StatisticsPanel />
         </div>
         <div className="dmain">
@@ -237,7 +237,7 @@ export default function App() {
         </div>
         <div className="dcol">
           <CopyTradePanel signal={signal} />
-          <TradeHistoryTable trades={trades} page={tradePage} totalPages={totalPages} onPageChange={setTradePage} />
+          <TradeHistoryTable trades={trades} loading={tradesLoading} page={tradePage} totalPages={totalPages} onPageChange={setTradePage} />
         </div>
       </div>
 

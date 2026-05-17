@@ -44,6 +44,21 @@ export interface AIDecision {
   dataSource?: 'deriv';
 }
 
+export interface SessionStat {
+  trades: number;
+  wins: number;
+  losses: number;
+  pnl: number;
+  winRate: number;
+}
+
+export interface SessionStats {
+  Asia: SessionStat;
+  London: SessionStat;
+  NewYork: SessionStat;
+  'Off-hours'?: SessionStat;
+}
+
 export interface PortfolioStats {
   balance: number;
   equity: number;
@@ -53,6 +68,7 @@ export interface PortfolioStats {
   totalTrades: number;
   openTrades: number;
   equityHistory: Array<{ time: string; value: number; rawTime?: string }>;
+  sessionStats?: SessionStats;
 }
 
 export interface Signal {

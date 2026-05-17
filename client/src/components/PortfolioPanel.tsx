@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from 'recharts';
-import type { PortfolioStats } from '../types';
+import type { PortfolioStats, SessionStats } from '../types';
 import { L } from '../lib/labels';
 
 const INITIAL_BALANCE = 1_000_000;
@@ -61,12 +61,6 @@ interface EquityPoint {
   rawTime?: string;
 }
 
-interface SessionStats {
-  Asia: { trades: number; pnl: number; winRate: number };
-  London: { trades: number; pnl: number; winRate: number };
-  NewYork: { trades: number; pnl: number; winRate: number };
-}
-
 function SessionCard({ name, session }: { name: string; session: { trades: number; pnl: number; winRate: number } }) {
   const pos = session.pnl >= 0;
   return (
@@ -118,7 +112,7 @@ export function PortfolioPanel({ stats, loading }: { stats: PortfolioStats; load
     return [startPoint, ...filtered.slice(1)];
   }, [stats.equityHistory, equityRange]);
 
-  const sessionStats = (stats as unknown as { sessionStats?: SessionStats }).sessionStats;
+  const sessionStats = stats.sessionStats;
   const hasSession = !!sessionStats;
 
   const rangeOptions: { key: EquityRange; label: string }[] = [

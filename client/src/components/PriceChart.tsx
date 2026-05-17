@@ -150,14 +150,14 @@ export function PriceChart({ currentPrice, activeSymbol = 'XAUUSD', signal }: Pr
     } catch {}
   }, [currentPrice, isReady]);
 
-  useEffect(() => {
+  function drawSignalLines() {
     if (!isReady || !entryLineRef.current || !tpLineRef.current || !slLineRef.current) return;
     const activeSignal = signal?.hasSignal ? signal.signal : null;
+    const candles = candlesRef.current;
 
-    if (activeSignal && candlesRef.current.length > 0) {
-      const candles = candlesRef.current;
-      const t1 = Math.max(0, candles[0]?.time ?? 0);
-      const t2 = (candles[candles.length - 1]?.time ?? 0) + 600;
+    if (activeSignal && candles.length > 0) {
+      const t1 = candles[0].time;
+      const t2 = candles[candles.length - 1].time + 600;
       const e = Number(activeSignal.entry);
       const tp = Number(activeSignal.tp);
       const sl = Number(activeSignal.sl);
@@ -173,7 +173,11 @@ export function PriceChart({ currentPrice, activeSymbol = 'XAUUSD', signal }: Pr
         slLineRef.current.setData([]);
       } catch {}
     }
-  }, [signal, isReady]);
+  }
+
+  useEffect(() => {
+    drawSignalLines();
+  }, [signal, isReady, currentPrice]);
 
   const isV75 = activeSymbol === 'V75';
   const symbolColor = isV75 ? '#a78bfa' : 'var(--gold)';
