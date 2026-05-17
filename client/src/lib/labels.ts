@@ -39,8 +39,8 @@ export const L = {
   openPnlLabel: 'Laba/Rugi Terbuka',
   howToEnterMT5: 'Cara Entry di MT5',
 
-  activeSignal: 'Signal Aktif — Posisi Terbuka',
-  lastSignal: 'Signal Terakhir — Tidak Ada Posisi',
+  activeSignal: 'Sinyal Aktif — Posisi Terbuka',
+  lastSignal: 'Sinyal Terakhir — Tidak Ada Posisi',
   waitingSignal: 'Menunggu signal AI...',
 
   tradeHistory: 'Riwayat Trade',

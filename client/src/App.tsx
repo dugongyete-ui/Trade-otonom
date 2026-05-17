@@ -16,7 +16,7 @@ import type { AIDecision, PortfolioStats, Signal, Trade, MarketStatus, DerivMark
 const DEFAULT_PORTFOLIO: PortfolioStats = {
   balance: 1000000, equity: 1000000, openPnl: 0, winRate: 0,
   maxDrawdown: 0, totalTrades: 0, openTrades: 0,
-  equityHistory: [{ time: 'Start', value: 1000000 }],
+  equityHistory: [{ time: 'Awal', value: 1000000 }],
 };
 const DEFAULT_SIGNAL: Signal = { hasSignal: false, lastDecision: null };
 const PAGE_SIZE = 15;

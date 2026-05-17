@@ -8,8 +8,8 @@ function fmtRp(value: number): string {
 
 function StatusPill({ status }: { status: string }) {
   const map: Record<string, { label: string; color: string; bg: string; border: string }> = {
-    TP_HIT: { label: 'TP Hit',  color: 'var(--green)',  bg: 'var(--green-d)', border: 'rgba(0,214,143,.2)' },
-    SL_HIT: { label: 'SL Hit',  color: 'var(--red)',    bg: 'var(--red-d)',   border: 'rgba(245,54,92,.2)' },
+    TP_HIT: { label: 'Batas Untung', color: 'var(--green)',  bg: 'var(--green-d)', border: 'rgba(0,214,143,.2)' },
+    SL_HIT: { label: 'Batas Rugi',  color: 'var(--red)',    bg: 'var(--red-d)',   border: 'rgba(245,54,92,.2)' },
     OPEN:   { label: 'Buka',    color: 'var(--gold)',   bg: 'var(--gold-glow)', border: 'rgba(201,168,76,.2)' },
     CLOSED: { label: 'Tutup',   color: 'var(--text-3)', bg: 'var(--bg)',      border: 'var(--border)' },
   };

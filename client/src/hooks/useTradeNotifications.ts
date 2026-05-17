@@ -58,6 +58,9 @@ export function useTradeNotifications(lastMessage: SSEMessage | null, onToast: T
     if (lastMessage === lastMessageRef.current) return;
     lastMessageRef.current = lastMessage;
 
+    // trade_update is the SSE event fired by the backend when a trade closes (TP_HIT or SL_HIT).
+    // The backend does not emit a separate trade_closed event; trade_update covers both
+    // open-trade PnL updates AND close events. We filter by data.status to identify closures.
     if (lastMessage.type !== 'trade_update') return;
     const data = lastMessage.data as { status?: string; pnl?: number; symbol?: string };
     if (!data?.status) return;

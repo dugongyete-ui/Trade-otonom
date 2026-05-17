@@ -195,8 +195,10 @@ export function PriceChart({ currentPrice, activeSymbol = 'XAUUSD', signal }: Pr
   const isV75 = activeSymbol === 'V75';
   const symbolColor = isV75 ? '#a78bfa' : 'var(--gold)';
 
+  const noData = !currentPrice;
+
   return (
-    <div className="card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div className="card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--gold)', letterSpacing: '.1em', textTransform: 'uppercase' }}>{L.priceChart}</span>
@@ -212,7 +214,17 @@ export function PriceChart({ currentPrice, activeSymbol = 'XAUUSD', signal }: Pr
           </div>
         )}
       </div>
-      <div ref={containerRef} style={{ flex: 1, minHeight: 0 }} />
+      {noData && (
+        <div style={{
+          position: 'absolute', inset: '40px 0 0', display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', gap: 8, zIndex: 1,
+          pointerEvents: 'none',
+        }}>
+          <div style={{ width: 28, height: 28, borderRadius: '50%', border: '2px solid var(--gold)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
+          <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 600 }}>{L.connecting}</div>
+        </div>
+      )}
+      <div ref={containerRef} style={{ flex: 1, minHeight: 0, position: 'relative' }} />
     </div>
   );
 }
