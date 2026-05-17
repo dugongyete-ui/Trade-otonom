@@ -204,7 +204,7 @@ export default function App() {
           <div key={tab} className={`panel${activeTab === tab ? ' on' : ''}`}>
             {tab === 'portfolio' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ height: 220, minHeight: 180 }}>
+                <div style={{ height: 220, minHeight: 200 }}>
                   <PriceChart currentPrice={derivStatus.currentPrice} activeSymbol={activeSymbol} signal={signal} />
                 </div>
                 <PortfolioPanel stats={portfolio} loading={portfolioLoading} />

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 
 export type SSEMessage = {
-  type: 'connected' | 'ai_thinking' | 'ai_decision' | 'trade_update' | 'portfolio_update' | 'market_status' | 'error';
+  type: 'connected' | 'ai_thinking' | 'ai_decision' | 'trade_update' | 'portfolio_update' | 'market_status' | 'price_tick' | 'error';
   data: unknown;
 };
 
@@ -9,7 +9,7 @@ type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
 
 const SSE_EVENTS: SSEMessage['type'][] = [
   'connected', 'ai_thinking', 'ai_decision', 'trade_update',
-  'portfolio_update', 'market_status', 'error',
+  'portfolio_update', 'market_status', 'price_tick', 'error',
 ];
 
 export function useSSE(url: string) {
