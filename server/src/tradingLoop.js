@@ -2,6 +2,7 @@ import { query } from './db.js';
 import { runAIDecision } from './aiEngine.js';
 import { getPortfolioStats, savePortfolioSnapshot } from './portfolio.js';
 import { getActiveMarketData, getActiveSymbol, getPipMultiplier, getCurrentDerivPrice } from './derivService.js';
+import { getIsAIPaused } from './aiState.js';
 
 let broadcast    = null;
 let loopInterval = null;
@@ -11,7 +12,6 @@ export function setBroadcast(fn) { broadcast = fn; }
 
 function getPriceForSymbol(tradeSymbol) {
   const active = getActiveMarketData();
-  // Use active price regardless of symbol (best available)
   return active.currentPrice || getCurrentDerivPrice() || null;
 }
 
@@ -21,16 +21,62 @@ async function updateOpenTrades() {
     const currentPx = getPriceForSymbol(trade.symbol);
     if (!currentPx) continue;
 
-    // Determine pip multiplier based on trade's symbol
     const sym = trade.symbol?.includes('Volatility') || trade.symbol === 'V75' ? 'V75' : 'XAUUSD';
     const pipMult = getPipMultiplier(sym);
     const lot     = parseFloat(trade.lot) || 0.01;
 
     const entry = parseFloat(trade.entry);
-    const sl    = parseFloat(trade.sl);
+    let sl      = parseFloat(trade.sl);
     const tp    = parseFloat(trade.tp);
+    const originalSlDist = parseFloat(trade.original_sl_dist) || Math.abs(entry - sl);
 
-    // Check TP/SL hit
+    // ── Trailing Stop Logic ────────────────────────────────────
+    let newSl = null;
+
+    if (trade.action === 'BUY') {
+      const totalDist    = tp - entry;
+      const currentProfit = currentPx - entry;
+      const profitRatio  = totalDist > 0 ? currentProfit / totalDist : 0;
+
+      if (profitRatio >= 0.75 && originalSlDist > 0) {
+        // Trail SL: current price minus 30% of original SL distance
+        const trailSl = parseFloat((currentPx - originalSlDist * 0.30).toFixed(5));
+        if (trailSl > sl) {
+          newSl = trailSl;
+        }
+      } else if (profitRatio >= 0.5) {
+        // Move SL to breakeven
+        if (entry > sl) {
+          newSl = entry;
+        }
+      }
+    } else if (trade.action === 'SELL') {
+      const totalDist     = entry - tp;
+      const currentProfit = entry - currentPx;
+      const profitRatio   = totalDist > 0 ? currentProfit / totalDist : 0;
+
+      if (profitRatio >= 0.75 && originalSlDist > 0) {
+        const trailSl = parseFloat((currentPx + originalSlDist * 0.30).toFixed(5));
+        if (trailSl < sl) {
+          newSl = trailSl;
+        }
+      } else if (profitRatio >= 0.5) {
+        if (entry < sl) {
+          newSl = entry;
+        }
+      }
+    }
+
+    if (newSl !== null && newSl !== sl) {
+      await query(`UPDATE trades SET sl=$1 WHERE id=$2`, [newSl, trade.id]);
+      sl = newSl;
+      console.log(`[Loop] Trailing stop updated: Trade ${trade.id} SL → ${newSl}`);
+      if (broadcast) {
+        broadcast({ type: 'trailing_stop_update', data: { tradeId: trade.id, newSl, action: trade.action } });
+      }
+    }
+
+    // ── TP/SL Hit Check ────────────────────────────────────────
     let status     = 'OPEN';
     let closePrice = null;
 
@@ -72,6 +118,27 @@ async function runCycle() {
   try {
     await updateOpenTrades();
 
+    // Kill switch check — skip AI decisions but keep managing open trades
+    if (getIsAIPaused()) {
+      console.log('[Loop] AI is paused (kill switch active) — skipping AI decision cycle');
+      const activeData   = getActiveMarketData();
+      const activeSymbol = getActiveSymbol();
+      if (broadcast) {
+        broadcast({
+          type: 'market_status',
+          data: {
+            status: activeData.marketStatus,
+            isConnected: activeData.isConnected,
+            currentPrice: activeData.currentPrice,
+            activeSymbol,
+            xauusdStatus: activeData.xauusdStatus,
+            aiPaused: true,
+          },
+        });
+      }
+      return;
+    }
+
     const decision   = await runAIDecision(broadcast);
     const activeData = getActiveMarketData();
     const activeSymbol = getActiveSymbol();
@@ -85,6 +152,7 @@ async function runCycle() {
           currentPrice: activeData.currentPrice,
           activeSymbol,
           xauusdStatus: activeData.xauusdStatus,
+          aiPaused: false,
         },
       });
     }
@@ -102,7 +170,7 @@ async function runCycle() {
       broadcast({ type: 'portfolio_update', data: stats });
     }
 
-    console.log(`[Loop] Cycle: ${decision.action} ${activeSymbol} @ ${decision.entry} (conf: ${decision.confidence})`);
+    console.log(`[Loop] Cycle: ${decision.action} ${activeSymbol} @ ${decision.entry} (conf: ${decision.confidence}, lot: ${decision.lot})`);
   } catch (err) {
     console.error('[Loop] Cycle error:', err.message);
     if (broadcast) broadcast({ type: 'error', data: { message: err.message } });
@@ -130,6 +198,7 @@ export function startTradingLoop() {
             currentPrice: activeData.currentPrice,
             activeSymbol,
             xauusdStatus: activeData.xauusdStatus,
+            aiPaused: getIsAIPaused(),
           },
         });
       }

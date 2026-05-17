@@ -2,6 +2,7 @@ import express from 'express';
 import { query } from './db.js';
 import { getPortfolioStats } from './portfolio.js';
 import { getActiveMarketData, getActiveSymbol, getXAUUSDStatus } from './derivService.js';
+import { getIsAIPaused } from './aiState.js';
 
 const router = express.Router();
 
@@ -25,7 +26,6 @@ router.get('/stream', (req, res) => {
   sseClients.add(res);
   console.log(`[SSE] Client connected (total: ${sseClients.size})`);
 
-  // Send initial market status immediately
   try {
     const data         = getActiveMarketData();
     const activeSymbol = getActiveSymbol();
@@ -33,10 +33,10 @@ router.get('/stream', (req, res) => {
     res.write(`event: market_status\ndata: ${JSON.stringify({
       status: data.marketStatus, isConnected: data.isConnected,
       currentPrice: data.currentPrice, activeSymbol, xauusdStatus,
+      aiPaused: getIsAIPaused(),
     })}\n\n`);
   } catch {}
 
-  // Keepalive ping every 15s to prevent proxy timeouts
   const ping = setInterval(() => {
     try { res.write(': ping\n\n'); } catch { clearInterval(ping); sseClients.delete(res); }
   }, 15000);
@@ -121,6 +121,7 @@ router.get('/market-status', async (req, res) => {
       activeSymbol,
       xauusdStatus,
       dataSource: 'Deriv WebSocket',
+      aiPaused: getIsAIPaused(),
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -129,6 +130,79 @@ router.get('/equity-history', async (req, res) => {
   try {
     const result = await query(`SELECT balance, equity, open_pnl, timestamp FROM portfolio_snapshots ORDER BY timestamp DESC LIMIT 50`);
     res.json(result.rows.reverse());
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── GET /api/ai-stats ─────────────────────────────────────────────
+router.get('/ai-stats', async (req, res) => {
+  try {
+    const tradesRes = await query(`SELECT * FROM trades WHERE status != 'OPEN' ORDER BY close_time ASC`);
+    const trades = tradesRes.rows;
+
+    if (trades.length === 0) {
+      return res.json({
+        profitFactor: null,
+        sharpeRatio: null,
+        maxConsecutiveLosses: 0,
+        avgTradeDurationMinutes: null,
+        totalTrades: 0,
+        wins: 0,
+        losses: 0,
+      });
+    }
+
+    const pnls = trades.map(t => parseFloat(t.pnl || 0));
+    const wins  = trades.filter(t => t.status === 'TP_HIT');
+    const losses = trades.filter(t => t.status === 'SL_HIT');
+
+    const grossProfit = wins.reduce((s, t) => s + parseFloat(t.pnl || 0), 0);
+    const grossLoss   = Math.abs(losses.reduce((s, t) => s + parseFloat(t.pnl || 0), 0));
+    const profitFactor = grossLoss > 0
+      ? parseFloat((grossProfit / grossLoss).toFixed(3))
+      : grossProfit > 0 ? 999 : null;
+
+    // Max consecutive losses
+    let maxConsecLosses = 0;
+    let curConsec = 0;
+    for (const t of trades) {
+      if (t.status === 'SL_HIT') {
+        curConsec++;
+        if (curConsec > maxConsecLosses) maxConsecLosses = curConsec;
+      } else {
+        curConsec = 0;
+      }
+    }
+
+    // Average trade duration (minutes)
+    const durations = trades
+      .filter(t => t.open_time && t.close_time)
+      .map(t => (new Date(t.close_time) - new Date(t.open_time)) / 60000);
+    const avgDuration = durations.length > 0
+      ? parseFloat((durations.reduce((a, b) => a + b, 0) / durations.length).toFixed(1))
+      : null;
+
+    // Sharpe Ratio approximation: mean(PnL) / std(PnL)
+    let sharpeRatio = null;
+    if (pnls.length >= 2) {
+      const mean = pnls.reduce((a, b) => a + b, 0) / pnls.length;
+      const variance = pnls.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / pnls.length;
+      const stdDev = Math.sqrt(variance);
+      sharpeRatio = stdDev > 0
+        ? parseFloat((mean / stdDev).toFixed(3))
+        : mean > 0 ? 999 : null;
+    }
+
+    res.json({
+      profitFactor,
+      sharpeRatio,
+      maxConsecutiveLosses: maxConsecLosses,
+      avgTradeDurationMinutes: avgDuration,
+      totalTrades: trades.length,
+      wins: wins.length,
+      losses: losses.length,
+      grossProfit: parseFloat(grossProfit.toFixed(2)),
+      grossLoss: parseFloat(grossLoss.toFixed(2)),
+    });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

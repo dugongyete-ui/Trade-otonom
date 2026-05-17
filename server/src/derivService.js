@@ -11,14 +11,14 @@ export const SYMBOL_CONFIG = {
     derivSymbol: XAUUSD_SYM,
     displayName: 'XAUUSD',
     fullName: 'Gold vs USD',
-    pipMultiplier: 10000,   // IDR scale: 1pt * 0.01lot = Rp 100
+    pipMultiplier: 10000,
     type: 'forex',
   },
   V75: {
     derivSymbol: V75_SYM,
     displayName: 'Volatility 75',
     fullName: 'Volatility 75 Index',
-    pipMultiplier: 1000,    // IDR scale: 1pt * 0.01lot = Rp 10
+    pipMultiplier: 1000,
     type: 'synthetic',
   },
 };
@@ -32,7 +32,7 @@ let pendingResolvers = new Map();
 let reqId            = 1;
 
 // ── Active market ─────────────────────────────────────────────
-let activeSymbol = 'XAUUSD'; // 'XAUUSD' | 'V75'
+let activeSymbol = 'XAUUSD';
 
 // ── XAUUSD state ─────────────────────────────────────────────
 let xauusdPrice  = null;
@@ -44,6 +44,8 @@ let xauusdStatus = 'unknown';
 let v75Price = null;
 let v75M5    = [];
 let v75M15   = [];
+
+const CANDLE_COUNT = 60; // 60 candles fetched to support EMA50 and MACD(26+9) calculations
 
 // ─────────────────────────────────────────────────────────────
 
@@ -84,7 +86,7 @@ async function checkXAUUSDStatus() {
   } catch { return 'unknown'; }
 }
 
-async function fetchCandles(derivSymbol, granularity, count = 10) {
+async function fetchCandles(derivSymbol, granularity, count = CANDLE_COUNT) {
   try {
     const res = await sendRequest({ ticks_history: derivSymbol, adjust_start_time: 1, count, end: 'latest', style: 'candles', granularity });
     if (res.error) {
@@ -110,8 +112,8 @@ async function subscribeToTicks(derivSymbol) {
 
 async function loadXAUUSDData() {
   console.log('[Deriv] Loading XAUUSD market data...');
-  const m5  = await fetchCandles(XAUUSD_SYM, 300, 10);
-  const m15 = await fetchCandles(XAUUSD_SYM, 900, 10);
+  const m5  = await fetchCandles(XAUUSD_SYM, 300, CANDLE_COUNT);
+  const m15 = await fetchCandles(XAUUSD_SYM, 900, CANDLE_COUNT);
   if (m5)  { xauusdM5  = m5; }
   if (m15) { xauusdM15 = m15; }
   if (xauusdM5.length > 0) xauusdPrice = xauusdM5[xauusdM5.length - 1].close;
@@ -122,8 +124,8 @@ async function loadXAUUSDData() {
 
 async function loadV75Data() {
   console.log('[Deriv] XAUUSD tutup — beralih ke Volatility 75 Index (R_75)...');
-  const m5  = await fetchCandles(V75_SYM, 300, 10);
-  const m15 = await fetchCandles(V75_SYM, 900, 10);
+  const m5  = await fetchCandles(V75_SYM, 300, CANDLE_COUNT);
+  const m15 = await fetchCandles(V75_SYM, 900, CANDLE_COUNT);
   if (m5)  { v75M5  = m5; }
   if (m15) { v75M15 = m15; }
   if (v75M5.length > 0) v75Price = v75M5[v75M5.length - 1].close;
@@ -133,7 +135,6 @@ async function loadV75Data() {
 
 function startXAUUSDCheck() {
   if (xauusdCheckTimer) clearInterval(xauusdCheckTimer);
-  // Check every 5 minutes if XAUUSD has opened
   xauusdCheckTimer = setInterval(async () => {
     if (!isConnected) return;
     const status = await checkXAUUSDStatus();
@@ -144,7 +145,6 @@ function startXAUUSDCheck() {
       xauusdCheckTimer = null;
       activeSymbol = 'XAUUSD';
       xauusdStatus = 'open';
-      // Clear V75 data so AI won't use stale V75 data for XAUUSD trades
       v75M5 = []; v75M15 = []; v75Price = null;
       await loadXAUUSDData();
     }
@@ -165,7 +165,6 @@ async function loadDerivData() {
     if (xauusdCheckTimer) { clearInterval(xauusdCheckTimer); xauusdCheckTimer = null; }
     await loadXAUUSDData();
   } else {
-    // XAUUSD closed — use V75
     activeSymbol = 'V75';
     xauusdStatus = 'closed';
     await loadV75Data();
@@ -198,14 +197,12 @@ export function connectDeriv() {
         return;
       }
 
-      // Live tick updates
       if (msg.msg_type === 'tick' && msg.tick) {
         const sym = msg.tick.symbol;
         if (sym === XAUUSD_SYM) { xauusdPrice = msg.tick.quote; xauusdStatus = 'open'; }
         else if (sym === V75_SYM) { v75Price = msg.tick.quote; }
       }
 
-      // Live candle updates
       if (msg.msg_type === 'ohlc' && msg.ohlc) {
         const sym = msg.ohlc.symbol;
         const candle = {
@@ -217,11 +214,11 @@ export function connectDeriv() {
         };
         const gran = msg.ohlc.granularity;
         if (sym === XAUUSD_SYM) {
-          if (gran === 300)  xauusdM5  = [...xauusdM5.slice(-9),  candle];
-          if (gran === 900)  xauusdM15 = [...xauusdM15.slice(-9), candle];
+          if (gran === 300)  xauusdM5  = [...xauusdM5.slice(-(CANDLE_COUNT - 1)),  candle];
+          if (gran === 900)  xauusdM15 = [...xauusdM15.slice(-(CANDLE_COUNT - 1)), candle];
         } else if (sym === V75_SYM) {
-          if (gran === 300)  v75M5  = [...v75M5.slice(-9),  candle];
-          if (gran === 900)  v75M15 = [...v75M15.slice(-9), candle];
+          if (gran === 300)  v75M5  = [...v75M5.slice(-(CANDLE_COUNT - 1)),  candle];
+          if (gran === 900)  v75M15 = [...v75M15.slice(-(CANDLE_COUNT - 1)), candle];
         }
       }
     } catch (err) { console.error('[Deriv] Parse error:', err.message); }
@@ -254,7 +251,7 @@ function normalizeCandles(candles) {
 }
 
 export function getActiveSymbol() {
-  return activeSymbol; // 'XAUUSD' | 'V75'
+  return activeSymbol;
 }
 
 export function getPipMultiplier(symbol) {
@@ -269,7 +266,7 @@ export function getActiveMarketData() {
       currentPrice: v75Price,
       m5Candles: normalizeCandles(v75M5),
       m15Candles: normalizeCandles(v75M15),
-      marketStatus: 'open', // V75 is always open
+      marketStatus: 'open',
       xauusdStatus,
       isConnected,
     };
@@ -286,7 +283,6 @@ export function getActiveMarketData() {
   };
 }
 
-// Legacy compat
 export function getDerivMarketData() {
   return getActiveMarketData();
 }

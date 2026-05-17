@@ -21,6 +21,7 @@ export async function initSchema() {
     )
   `);
   await query(`ALTER TABLE trades ADD COLUMN IF NOT EXISTS open_pnl DECIMAL(12, 2) DEFAULT 0`);
+  await query(`ALTER TABLE trades ADD COLUMN IF NOT EXISTS original_sl_dist DECIMAL(12, 5)`);
 
   await query(`
     CREATE TABLE IF NOT EXISTS market_snapshots (

@@ -7,6 +7,7 @@ import { initSchema } from './schema.js';
 import routes, { broadcastSSE } from './routes.js';
 import { startTradingLoop, setBroadcast } from './tradingLoop.js';
 import { connectDeriv, getActiveMarketData, getActiveSymbol, getXAUUSDStatus } from './derivService.js';
+import { getIsAIPaused, setIsAIPaused } from './aiState.js';
 
 const app  = express();
 const PORT = process.env.PORT || 3001;
@@ -17,13 +18,29 @@ app.use(express.json());
 
 // ── API routes ──────────────────────────────────────────────────────
 app.use('/api', routes);
-app.get('/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
+app.get('/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString(), aiPaused: getIsAIPaused() }));
+
+// ── Kill Switch Endpoints ────────────────────────────────────────────
+app.post('/api/ai/pause', (req, res) => {
+  setIsAIPaused(true);
+  console.log('[Server] AI Kill Switch ACTIVATED — AI paused');
+  res.json({ success: true, aiPaused: true, message: 'AI trading dihentikan sementara. Trade yang sudah terbuka tetap dikelola.' });
+});
+
+app.post('/api/ai/resume', (req, res) => {
+  setIsAIPaused(false);
+  console.log('[Server] AI Kill Switch DEACTIVATED — AI resumed');
+  res.json({ success: true, aiPaused: false, message: 'AI trading dilanjutkan kembali.' });
+});
+
+app.get('/api/ai/status', (req, res) => {
+  res.json({ aiPaused: getIsAIPaused() });
+});
 
 // ── Serve built frontend in production ──────────────────────────────
 if (isProd) {
   const distDir = path.join(process.cwd(), 'client', 'dist');
   app.use(express.static(distDir));
-  // SPA fallback — all non-API routes serve index.html
   app.get('*', (req, res) => {
     res.sendFile(path.join(distDir, 'index.html'));
   });
@@ -41,7 +58,7 @@ wss.on('connection', (ws) => {
     const activeSymbol = getActiveSymbol();
     const xauusdStatus = getXAUUSDStatus();
     ws.send(JSON.stringify({ type: 'connected', data: { message: 'DzeckAI Trader connected' } }));
-    ws.send(JSON.stringify({ type: 'market_status', data: { status: data.marketStatus, isConnected: data.isConnected, currentPrice: data.currentPrice, activeSymbol, xauusdStatus } }));
+    ws.send(JSON.stringify({ type: 'market_status', data: { status: data.marketStatus, isConnected: data.isConnected, currentPrice: data.currentPrice, activeSymbol, xauusdStatus, aiPaused: getIsAIPaused() } }));
   } catch {}
   ws.on('close', () => wsClients.delete(ws));
   ws.on('error', () => wsClients.delete(ws));
