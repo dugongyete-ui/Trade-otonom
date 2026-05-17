@@ -1,11 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSSE } from './hooks/useSSE';
 import { useApi } from './hooks/useApi';
+import { useTradeNotifications } from './hooks/useTradeNotifications';
 import { Header } from './components/Header';
 import { PortfolioPanel } from './components/PortfolioPanel';
 import { AIThinkingFeed } from './components/AIThinkingFeed';
 import { CopyTradePanel } from './components/CopyTradePanel';
 import { TradeHistoryTable } from './components/TradeHistoryTable';
+import { PriceChart } from './components/PriceChart';
+import { StatisticsPanel } from './components/StatisticsPanel';
+import { ToastContainer, type ToastItem } from './components/ToastNotification';
+import { L } from './lib/labels';
 import type { AIDecision, PortfolioStats, Signal, Trade, MarketStatus, DerivMarketStatus } from './types';
 
 const DEFAULT_PORTFOLIO: PortfolioStats = {
@@ -45,10 +50,10 @@ function NavIcon({ tab, active }: { tab: Tab; active: boolean }) {
 }
 
 const TABS: { tab: Tab; label: string }[] = [
-  { tab: 'portfolio', label: 'Portfolio' },
-  { tab: 'feed',      label: 'AI Feed'   },
-  { tab: 'signal',    label: 'Signal'    },
-  { tab: 'history',   label: 'Riwayat'   },
+  { tab: 'portfolio', label: L.portfolio },
+  { tab: 'feed',      label: L.aiFeed   },
+  { tab: 'signal',    label: L.signal   },
+  { tab: 'history',   label: L.history  },
 ];
 
 export default function App() {
@@ -56,6 +61,8 @@ export default function App() {
   const [activeTab, setActiveTab]   = useState<Tab>('feed');
   const [tradePage, setTradePage]   = useState(1);
   const [tradeTotal, setTradeTotal] = useState(0);
+  const [aiPaused, setAiPaused]     = useState(false);
+  const [toasts, setToasts]         = useState<ToastItem[]>([]);
   const [derivStatus, setDerivStatus] = useState<DerivMarketStatus>({
     status: 'unknown', isConnected: false, currentPrice: null,
     activeSymbol: 'XAUUSD', xauusdStatus: 'unknown',
@@ -79,9 +86,27 @@ export default function App() {
   useEffect(() => { if (initSignal)                setSignal(initSignal);  }, [initSignal]);
   useEffect(() => { if (initAiLog?.length > 0)     setDecisions(initAiLog); }, [initAiLog]);
 
+  // Sync AI pause state on init
+  useEffect(() => {
+    fetch('/api/ai/status')
+      .then(r => r.json())
+      .then(d => setAiPaused(Boolean(d.aiPaused)))
+      .catch(() => {});
+  }, []);
+
   const refetchAll = useCallback(() => {
     refetchPortfolio(); refetchTrades(); refetchSignal();
   }, [refetchPortfolio, refetchTrades, refetchSignal]);
+
+  const addToast = useCallback((toast: ToastItem) => {
+    setToasts(prev => [...prev, toast]);
+  }, []);
+
+  const dismissToast = useCallback((id: number) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
+
+  useTradeNotifications(lastMessage, addToast);
 
   useEffect(() => {
     if (!lastMessage) return;
@@ -95,7 +120,7 @@ export default function App() {
     if (type === 'portfolio_update') setPortfolio(data as PortfolioStats);
     if (type === 'trade_update')    { setIsThinking(false); refetchTrades(); refetchSignal(); }
     if (type === 'market_status') {
-      const d = data as { status: string; isConnected: boolean; currentPrice: number | null; activeSymbol?: string; xauusdStatus?: string };
+      const d = data as { status: string; isConnected: boolean; currentPrice: number | null; activeSymbol?: string; xauusdStatus?: string; aiPaused?: boolean };
       setDerivStatus({
         status: d.status as DerivMarketStatus['status'],
         isConnected: d.isConnected,
@@ -103,6 +128,7 @@ export default function App() {
         activeSymbol: (d.activeSymbol as DerivMarketStatus['activeSymbol']) || 'XAUUSD',
         xauusdStatus: (d.xauusdStatus as DerivMarketStatus['xauusdStatus']) || 'unknown',
       });
+      if (d.aiPaused !== undefined) setAiPaused(d.aiPaused);
     }
   }, [lastMessage, refetchSignal, refetchTrades]);
 
@@ -111,24 +137,36 @@ export default function App() {
     return () => clearInterval(iv);
   }, [refetchAll]);
 
-  // Poll market status via REST every 3s as reliable fallback regardless of WS state
   useEffect(() => {
     function fetchStatus() {
       fetch('/api/market-status')
         .then(r => r.json())
-        .then(d => setDerivStatus({
-          status:        d.status        as DerivMarketStatus['status'],
-          isConnected:   d.isConnected,
-          currentPrice:  d.currentPrice,
-          activeSymbol:  (d.activeSymbol  as DerivMarketStatus['activeSymbol'])  || 'XAUUSD',
-          xauusdStatus:  (d.xauusdStatus  as DerivMarketStatus['xauusdStatus'])  || 'unknown',
-        }))
+        .then(d => {
+          setDerivStatus({
+            status:        d.status        as DerivMarketStatus['status'],
+            isConnected:   d.isConnected,
+            currentPrice:  d.currentPrice,
+            activeSymbol:  (d.activeSymbol  as DerivMarketStatus['activeSymbol'])  || 'XAUUSD',
+            xauusdStatus:  (d.xauusdStatus  as DerivMarketStatus['xauusdStatus'])  || 'unknown',
+          });
+          if (d.aiPaused !== undefined) setAiPaused(d.aiPaused);
+        })
         .catch(() => {});
     }
     fetchStatus();
     const iv = setInterval(fetchStatus, 3000);
     return () => clearInterval(iv);
   }, []);
+
+  function handlePauseToggle() {
+    const endpoint = aiPaused ? '/api/ai/resume' : '/api/ai/pause';
+    const optimistic = !aiPaused;
+    setAiPaused(optimistic);
+    fetch(endpoint, { method: 'POST' })
+      .then(r => r.json())
+      .then(d => { if (d.aiPaused !== undefined) setAiPaused(d.aiPaused); })
+      .catch(() => setAiPaused(!optimistic));
+  }
 
   const totalPages   = Math.max(1, Math.ceil(tradeTotal / PAGE_SIZE));
   const mktStatus    = derivStatus.status as MarketStatus;
@@ -145,13 +183,23 @@ export default function App() {
         currentPrice={derivStatus.currentPrice}
         activeSymbol={activeSymbol}
         xauusdStatus={xauusdStatus}
+        aiPaused={aiPaused}
+        onPauseToggle={handlePauseToggle}
       />
 
       {/* ── Mobile: tab panels ── */}
       <div className="content">
         {TABS.map(({ tab }) => (
           <div key={tab} className={`panel${activeTab === tab ? ' on' : ''}`}>
-            {tab === 'portfolio' && <PortfolioPanel stats={portfolio} />}
+            {tab === 'portfolio' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ height: 220, minHeight: 180 }}>
+                  <PriceChart currentPrice={derivStatus.currentPrice} activeSymbol={activeSymbol} signal={signal} />
+                </div>
+                <PortfolioPanel stats={portfolio} />
+                <StatisticsPanel />
+              </div>
+            )}
             {tab === 'feed'      && <AIThinkingFeed decisions={decisions} isThinking={isThinking} marketStatus={mktStatus} activeSymbol={activeSymbol} xauusdStatus={xauusdStatus} />}
             {tab === 'signal'    && <CopyTradePanel signal={signal} />}
             {tab === 'history'   && <TradeHistoryTable trades={trades} page={tradePage} totalPages={totalPages} onPageChange={setTradePage} />}
@@ -162,7 +210,12 @@ export default function App() {
       {/* ── Mobile: bottom nav ── */}
       <nav className="bnav">
         {TABS.map(({ tab, label }) => (
-          <button key={tab} className={`bnav-btn${activeTab === tab ? ' on' : ''}`} onClick={() => setActiveTab(tab)}>
+          <button
+            key={tab}
+            data-testid={`btn-nav-${tab}`}
+            className={`bnav-btn${activeTab === tab ? ' on' : ''}`}
+            onClick={() => setActiveTab(tab)}
+          >
             <div className="bnav-icon"><NavIcon tab={tab} active={activeTab === tab} /></div>
             <span className="bnav-lbl">{label}</span>
           </button>
@@ -172,7 +225,11 @@ export default function App() {
       {/* ── Desktop: 3-col grid ── */}
       <div className="dgrid">
         <div className="dcol">
+          <div style={{ height: 240, flexShrink: 0 }}>
+            <PriceChart currentPrice={derivStatus.currentPrice} activeSymbol={activeSymbol} signal={signal} />
+          </div>
           <PortfolioPanel stats={portfolio} />
+          <StatisticsPanel />
         </div>
         <div className="dmain">
           <AIThinkingFeed decisions={decisions} isThinking={isThinking} marketStatus={mktStatus} activeSymbol={activeSymbol} xauusdStatus={xauusdStatus} />
@@ -182,6 +239,9 @@ export default function App() {
           <TradeHistoryTable trades={trades} page={tradePage} totalPages={totalPages} onPageChange={setTradePage} />
         </div>
       </div>
+
+      {/* Toast notifications */}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 }

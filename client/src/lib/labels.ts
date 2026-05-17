@@ -1,0 +1,72 @@
+export const L = {
+  portfolio: 'Portofolio',
+  aiFeed: 'AI Feed',
+  signal: 'Signal',
+  history: 'Riwayat',
+
+  totalEquity: 'Total Ekuitas',
+  fromInitialCapital: 'dari modal awal',
+  saldo: 'Saldo',
+  openPnl: 'Laba/Rugi Terbuka',
+  winRate: 'Tingkat Kemenangan',
+  maxDrawdown: 'Penarikan Maksimum',
+  totalPnlFromCapital: 'Total P&L dari Modal Awal',
+  positionClosed: 'Posisi / Closed',
+  open: 'Buka',
+  closed: 'Tutup',
+
+  sessionAsia: 'Sesi Asia',
+  sessionLondon: 'Sesi London',
+  sessionNewYork: 'Sesi New York',
+  trades: 'trade',
+  winRateShort: 'Win Rate',
+
+  equityToday: 'Hari Ini',
+  equity7Days: '7 Hari',
+  equityAll: 'Semua',
+  equityCurve: 'Kurva Ekuitas',
+
+  aiDecisionFeed: 'Feed Keputusan AI',
+  aiThinking: 'Menganalisis',
+  analysisAI: 'Analisis AI',
+  confidence: 'Keyakinan',
+
+  entry: 'Entry',
+  stopLoss: 'Stop Loss',
+  takeProfit: 'Take Profit',
+  lotSize: 'Ukuran Lot',
+  riskReward: 'Risk / Reward',
+  openPnlLabel: 'Laba/Rugi Terbuka',
+  howToEnterMT5: 'Cara Entry di MT5',
+
+  activeSignal: 'Signal Aktif — Posisi Terbuka',
+  lastSignal: 'Signal Terakhir — Tidak Ada Posisi',
+  waitingSignal: 'Menunggu signal AI...',
+
+  tradeHistory: 'Riwayat Trade',
+  openPositions: 'Posisi Terbuka',
+  noClosedTrades: 'Belum ada trade yang selesai',
+  loading: 'Memuat...',
+  prev: '← Sebelumnya',
+  next: 'Selanjutnya →',
+
+  aiActive: 'AI Aktif',
+  aiPaused: 'AI Dijeda',
+  pauseAI: 'Jeda AI',
+  resumeAI: 'Lanjutkan AI',
+  confirmPause: 'Yakin ingin menjeda AI? Trade yang terbuka tetap dikelola.',
+
+  profitFactor: 'Profit Factor',
+  sharpeRatio: 'Sharpe Ratio',
+  maxConsecLoss: 'Maks. Rugi Beruntun',
+  avgDuration: 'Rata-rata Durasi',
+  minutes: 'menit',
+
+  tpHitTitle: 'Take Profit Tercapai!',
+  slHitTitle: 'Stop Loss Terkena!',
+
+  priceChart: 'Chart Harga Live',
+  deriv: 'Deriv Live',
+  marketClosed: 'Market Tutup',
+  connecting: 'Menghubungkan',
+};

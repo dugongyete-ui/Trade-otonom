@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Trade } from '../types';
+import { L } from '../lib/labels';
 
 function fmtRp(value: number): string {
   return 'Rp ' + Math.abs(value).toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -9,8 +10,8 @@ function StatusPill({ status }: { status: string }) {
   const map: Record<string, { label: string; color: string; bg: string; border: string }> = {
     TP_HIT: { label: 'TP Hit',  color: 'var(--green)',  bg: 'var(--green-d)', border: 'rgba(0,214,143,.2)' },
     SL_HIT: { label: 'SL Hit',  color: 'var(--red)',    bg: 'var(--red-d)',   border: 'rgba(245,54,92,.2)' },
-    OPEN:   { label: 'Open',    color: 'var(--gold)',   bg: 'var(--gold-glow)', border: 'rgba(201,168,76,.2)' },
-    CLOSED: { label: 'Closed',  color: 'var(--text-3)', bg: 'var(--bg)',      border: 'var(--border)' },
+    OPEN:   { label: 'Buka',    color: 'var(--gold)',   bg: 'var(--gold-glow)', border: 'rgba(201,168,76,.2)' },
+    CLOSED: { label: 'Tutup',   color: 'var(--text-3)', bg: 'var(--bg)',      border: 'var(--border)' },
   };
   const c = map[status] || map.CLOSED;
   return (
@@ -22,14 +23,15 @@ function StatusPill({ status }: { status: string }) {
 
 function TradeCard({ trade }: { trade: Trade }) {
   const [open, setOpen] = useState(false);
-  const pnl = Number(trade.pnl || 0);
+  const pnl  = Number(trade.pnl || 0);
   const pos  = pnl > 0;
   const time = new Date(trade.open_time).toLocaleString('id-ID', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   const hasRef = !!trade.reflection;
-  const isV75 = trade.symbol?.includes('Volatility') || trade.symbol === 'V75';
+  const isV75  = trade.symbol?.includes('Volatility') || trade.symbol === 'V75';
 
   return (
     <div
+      data-testid={`card-trade-${trade.id}`}
       onClick={() => hasRef && setOpen(!open)}
       style={{
         background: 'var(--bg-card)', border: '1px solid var(--border)',
@@ -40,7 +42,6 @@ function TradeCard({ trade }: { trade: Trade }) {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        {/* Action badge */}
         <span className="mono" style={{
           fontSize: 11, fontWeight: 800,
           color: trade.action === 'BUY' ? 'var(--green)' : 'var(--red)',
@@ -51,7 +52,6 @@ function TradeCard({ trade }: { trade: Trade }) {
           {trade.action}
         </span>
 
-        {/* Symbol + price */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
             <span style={{ fontSize: 10, fontWeight: 700, color: isV75 ? '#a78bfa' : 'var(--gold)', letterSpacing: '.03em' }}>
@@ -65,7 +65,6 @@ function TradeCard({ trade }: { trade: Trade }) {
           <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 2 }}>{time}</div>
         </div>
 
-        {/* PnL */}
         {trade.status !== 'OPEN' && (
           <span className="mono" style={{ fontSize: 12, fontWeight: 700, color: pos ? 'var(--green)' : pnl < 0 ? 'var(--red)' : 'var(--text-3)', flexShrink: 0 }}>
             {pos ? '+' : pnl < 0 ? '−' : ''}{fmtRp(pnl)}
@@ -106,14 +105,13 @@ export function TradeHistoryTable({ trades, loading, page, totalPages, onPageCha
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div className="label" style={{ padding: '0 2px' }}>Riwayat Trade</div>
+      <div className="label" style={{ padding: '0 2px' }}>{L.tradeHistory}</div>
 
-      {/* Open trades */}
       {opens.length > 0 && (
         <div style={{ background: 'var(--bg-card)', border: '1px solid rgba(0,214,143,.18)', borderRadius: 10, padding: '12px 14px' }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--green)', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)', display: 'inline-block' }} className="glow-dot" />
-            Posisi Terbuka ({opens.length})
+            {L.openPositions} ({opens.length})
           </div>
           {opens.map(t => {
             const openPnl = Number(t.open_pnl || 0);
@@ -134,25 +132,37 @@ export function TradeHistoryTable({ trades, loading, page, totalPages, onPageCha
         </div>
       )}
 
-      {/* Closed trades */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
         {loading && (
-          <div style={{ textAlign: 'center', padding: '28px', color: 'var(--text-3)', fontSize: 13 }}>Memuat...</div>
+          <div style={{ textAlign: 'center', padding: '28px', color: 'var(--text-3)', fontSize: 13 }}>{L.loading}</div>
         )}
         {!loading && closed.length === 0 && (
           <div className="card" style={{ padding: '28px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>
-            Belum ada trade yang selesai
+            {L.noClosedTrades}
           </div>
         )}
         {!loading && closed.map(t => <TradeCard key={t.id} trade={t} />)}
       </div>
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 2px' }}>
-          <button className="btn" onClick={() => onPageChange(Math.max(1, page - 1))} disabled={page === 1}>← Prev</button>
+          <button
+            data-testid="btn-prev-page"
+            className="btn"
+            onClick={() => onPageChange(Math.max(1, page - 1))}
+            disabled={page === 1}
+          >
+            {L.prev}
+          </button>
           <span className="mono" style={{ fontSize: 11, color: 'var(--text-3)' }}>{page} / {totalPages}</span>
-          <button className="btn" onClick={() => onPageChange(Math.min(totalPages, page + 1))} disabled={page === totalPages}>Next →</button>
+          <button
+            data-testid="btn-next-page"
+            className="btn"
+            onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+            disabled={page === totalPages}
+          >
+            {L.next}
+          </button>
         </div>
       )}
     </div>

@@ -1,5 +1,6 @@
 import { useRef, useEffect } from 'react';
 import type { AIDecision } from '../types';
+import { L } from '../lib/labels';
 
 interface Props {
   decisions: AIDecision[];
@@ -43,14 +44,17 @@ function Card({ d, latest }: { d: AIDecision; latest: boolean }) {
     : '';
 
   return (
-    <div className={latest ? 'slide-up' : ''} style={{
-      background: 'var(--bg-card)',
-      border: `1px solid ${latest ? 'var(--border-2)' : 'var(--border)'}`,
-      borderRadius: 'var(--radius)',
-      padding: '14px',
-      display: 'flex', flexDirection: 'column', gap: 11,
-    }}>
-
+    <div
+      data-testid={`card-decision-${d.id ?? 'latest'}`}
+      className={latest ? 'slide-up' : ''}
+      style={{
+        background: 'var(--bg-card)',
+        border: `1px solid ${latest ? 'var(--border-2)' : 'var(--border)'}`,
+        borderRadius: 'var(--radius)',
+        padding: '14px',
+        display: 'flex', flexDirection: 'column', gap: 11,
+      }}
+    >
       {/* Reflection */}
       {hasRef && (
         <div style={{ background: 'rgba(201,168,76,.05)', border: '1px solid rgba(201,168,76,.18)', borderRadius: 9, padding: '10px 12px', display: 'flex', gap: 10 }}>
@@ -90,14 +94,14 @@ function Card({ d, latest }: { d: AIDecision; latest: boolean }) {
 
       {/* Confidence */}
       <div>
-        <div className="label" style={{ marginBottom: 6 }}>Confidence</div>
+        <div className="label" style={{ marginBottom: 6 }}>{L.confidence}</div>
         <ConfBar value={Number(d.confidence)} />
       </div>
 
       {/* Reasoning */}
       {d.reasoning && (
         <div>
-          <div className="label" style={{ marginBottom: 6 }}>Analisis AI</div>
+          <div className="label" style={{ marginBottom: 6 }}>{L.analysisAI}</div>
           <p style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.7 }}>{d.reasoning}</p>
         </div>
       )}
@@ -163,14 +167,14 @@ export function AIThinkingFeed({ decisions, isThinking, marketStatus, activeSymb
       {/* Top bar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2px', flexShrink: 0 }}>
         <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--gold)', letterSpacing: '.12em', textTransform: 'uppercase' }}>
-          AI Decision Feed
+          {L.aiDecisionFeed}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <span style={{
             width: 5, height: 5, borderRadius: '50%', background: marketStatus === 'open' ? 'var(--green)' : 'var(--text-3)', display: 'inline-block'
           }} className={marketStatus === 'open' ? 'glow-dot' : ''} />
           <span style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 500 }}>
-            {marketStatus === 'open' ? 'Deriv Live' : marketStatus === 'closed' ? 'Market Tutup' : 'Connecting'}
+            {marketStatus === 'open' ? L.deriv : marketStatus === 'closed' ? L.marketClosed : L.connecting}
           </span>
         </div>
       </div>

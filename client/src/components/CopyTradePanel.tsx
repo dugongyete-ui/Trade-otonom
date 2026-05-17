@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Signal } from '../types';
+import { L } from '../lib/labels';
 
 function fmtRp(value: number): string {
   const abs = Math.abs(value);
@@ -11,6 +12,7 @@ function CopyBtn({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <button
+      data-testid={`btn-copy-${text}`}
       onClick={() => { navigator.clipboard.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }); }}
       style={{
         padding: '3px 9px', borderRadius: 6, fontSize: 10, fontWeight: 600, cursor: 'pointer',
@@ -20,7 +22,7 @@ function CopyBtn({ text }: { text: string }) {
         transition: 'all .15s', flexShrink: 0,
       }}
     >
-      {copied ? '✓' : 'Copy'}
+      {copied ? '✓' : 'Salin'}
     </button>
   );
 }
@@ -56,22 +58,21 @@ export function CopyTradePanel({ signal }: { signal: Signal }) {
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 12px' }}>
           <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
         </svg>
-        <div style={{ fontSize: 13, color: 'var(--text-2)', fontWeight: 500 }}>Menunggu signal AI...</div>
+        <div style={{ fontSize: 13, color: 'var(--text-2)', fontWeight: 500 }}>{L.waitingSignal}</div>
       </div>
     );
   }
 
-  const action = display.action;
-  const isV75  = display.symbol?.includes('Volatility') || display.symbol === 'V75';
+  const action   = display.action;
+  const isV75    = display.symbol?.includes('Volatility') || display.symbol === 'V75';
   const decimals = isV75 ? 3 : 2;
-  const entry  = Number(display.entry).toFixed(decimals);
-  const sl     = Number(display.sl).toFixed(decimals);
-  const tp     = Number(display.tp).toFixed(decimals);
-  const lot    = activeSignal ? Number(activeSignal.lot).toFixed(2) : '0.01';
-  const den    = Math.abs(Number(entry) - Number(sl));
-  const rr     = den > 0 ? (Math.abs(Number(tp) - Number(entry)) / den).toFixed(2) : '—';
-  const aColor = action === 'BUY' ? 'var(--green)' : action === 'SELL' ? 'var(--red)' : 'var(--text-2)';
-
+  const entry    = Number(display.entry).toFixed(decimals);
+  const sl       = Number(display.sl).toFixed(decimals);
+  const tp       = Number(display.tp).toFixed(decimals);
+  const lot      = activeSignal ? Number(activeSignal.lot).toFixed(2) : '0.01';
+  const den      = Math.abs(Number(entry) - Number(sl));
+  const rr       = den > 0 ? (Math.abs(Number(tp) - Number(entry)) / den).toFixed(2) : '—';
+  const aColor   = action === 'BUY' ? 'var(--green)' : action === 'SELL' ? 'var(--red)' : 'var(--text-2)';
   const symbolLabel = isV75 ? 'Volatility 75' : 'XAUUSD';
   const symbolColor = isV75 ? '#a78bfa' : 'var(--gold)';
 
@@ -88,7 +89,7 @@ export function CopyTradePanel({ signal }: { signal: Signal }) {
       }}>
         <span style={{ width: 6, height: 6, borderRadius: '50%', background: hasActive ? 'var(--green)' : 'var(--text-3)', flexShrink: 0, display: 'inline-block' }}
           className={hasActive ? 'glow-dot' : ''} />
-        {hasActive ? 'Signal Aktif — Posisi Terbuka' : 'Signal Terakhir — No Open Position'}
+        {hasActive ? L.activeSignal : L.lastSignal}
       </div>
 
       {/* Signal card */}
@@ -104,13 +105,13 @@ export function CopyTradePanel({ signal }: { signal: Signal }) {
           }}>{action}</span>
         </div>
 
-        <Row label="Entry Price" value={entry} gold />
-        <Row label="Stop Loss"   value={sl} />
-        <Row label="Take Profit" value={tp} />
-        <Row label="Lot Size"    value={lot} />
+        <Row label={L.entry}     value={entry} gold />
+        <Row label={L.stopLoss}  value={sl} />
+        <Row label={L.takeProfit} value={tp} />
+        <Row label={L.lotSize}   value={lot} />
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 10 }}>
-          <span style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 500 }}>Risk / Reward</span>
+          <span style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 500 }}>{L.riskReward}</span>
           <span className="mono" style={{ fontSize: 14, fontWeight: 700, color: 'var(--gold)' }}>1 : {rr}</span>
         </div>
       </div>
@@ -118,7 +119,7 @@ export function CopyTradePanel({ signal }: { signal: Signal }) {
       {/* Open PnL */}
       {activeSignal && (
         <div className="card" style={{ padding: '12px 16px' }}>
-          <div className="label" style={{ marginBottom: 5 }}>Open PnL</div>
+          <div className="label" style={{ marginBottom: 5 }}>{L.openPnlLabel}</div>
           <div className="mono" style={{ fontSize: 22, fontWeight: 800, color: Number(activeSignal.openPnl) >= 0 ? 'var(--green)' : 'var(--red)' }}>
             {fmtRp(Number(activeSignal.openPnl))}
           </div>
@@ -127,7 +128,7 @@ export function CopyTradePanel({ signal }: { signal: Signal }) {
 
       {/* MT5 Steps */}
       <div className="card" style={{ padding: '14px 16px' }}>
-        <div className="label" style={{ marginBottom: 12 }}>Cara Entry di MT5</div>
+        <div className="label" style={{ marginBottom: 12 }}>{L.howToEnterMT5}</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
           {MT5_STEPS.map((step, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
