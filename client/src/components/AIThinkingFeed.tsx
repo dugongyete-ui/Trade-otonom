@@ -1,127 +1,118 @@
-import { useEffect, useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import type { AIDecision } from '../types';
 
-interface AIThinkingFeedProps {
+interface Props {
   decisions: AIDecision[];
   isThinking: boolean;
   marketStatus?: 'open' | 'closed' | 'unknown';
 }
 
-function ActionBadge({ action }: { action: string }) {
-  const cls = action === 'BUY' ? 'badge-buy' : action === 'SELL' ? 'badge-sell' : 'badge-hold';
-  return (
-    <span className={cls} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.05em' }}>
-      {action}
-    </span>
-  );
+function Badge({ action }: { action: string }) {
+  const cls = action === 'BUY' ? 'badge badge-buy' : action === 'SELL' ? 'badge badge-sell' : 'badge badge-hold';
+  return <span className={cls}>{action}</span>;
 }
 
-function ConfidenceBar({ value }: { value: number }) {
+function ConfBar({ value }: { value: number }) {
   const pct = Math.round(value * 100);
   const color = pct >= 75 ? 'var(--green)' : pct >= 50 ? 'var(--gold)' : 'var(--red)';
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <div style={{ flex: 1, height: 3, borderRadius: 2, background: 'var(--border-bright)', overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 2, transition: 'width 0.6s ease' }} />
+      <div style={{ flex: 1, height: 3, borderRadius: 2, background: 'var(--border-2)', overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 2, transition: 'width .5s ease' }} />
       </div>
-      <span className="font-mono" style={{ fontSize: 11, fontWeight: 700, color, minWidth: 34, textAlign: 'right' }}>{pct}%</span>
+      <span className="mono" style={{ fontSize: 11, fontWeight: 700, color, minWidth: 32, textAlign: 'right' }}>{pct}%</span>
     </div>
   );
 }
 
 function PricePill({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
-    <div style={{ flex: 1, background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', textAlign: 'center' }}>
-      <div style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 3 }}>{label}</div>
-      <div className="font-mono" style={{ fontSize: 13, fontWeight: 700, color: highlight ? 'var(--gold)' : 'var(--text-primary)' }}>{value}</div>
+    <div style={{ flex: 1, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 8px', textAlign: 'center' }}>
+      <div className="label" style={{ marginBottom: 3 }}>{label}</div>
+      <div className="mono" style={{ fontSize: 12, fontWeight: 700, color: highlight ? 'var(--gold)' : 'var(--text)' }}>{value}</div>
     </div>
   );
 }
 
-function DecisionCard({ decision, isLatest }: { decision: AIDecision; isLatest: boolean }) {
-  const hasReflection = decision.reflection && decision.reflection.trim().length > 0;
-  const time = decision.timestamp
-    ? new Date(decision.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+function Card({ d, latest }: { d: AIDecision; latest: boolean }) {
+  const hasRef = d.reflection && d.reflection.trim().length > 0;
+  const time = d.timestamp
+    ? new Date(d.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     : '';
-  const isBuy = decision.action === 'BUY';
-  const isSell = decision.action === 'SELL';
 
   return (
-    <div className={isLatest ? 'animate-slide-up' : ''} style={{
+    <div className={latest ? 'slide-up' : ''} style={{
       background: 'var(--bg-card)',
-      border: `1px solid ${isLatest ? 'var(--border-bright)' : 'var(--border)'}`,
-      borderRadius: 12,
+      border: `1px solid ${latest ? 'var(--border-2)' : 'var(--border)'}`,
+      borderRadius: 'var(--radius)',
       padding: '14px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 12,
+      display: 'flex', flexDirection: 'column', gap: 11,
     }}>
+
       {/* Reflection */}
-      {hasReflection && (
-        <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, padding: '10px 12px', display: 'flex', gap: 10 }}>
-          <div style={{ flexShrink: 0 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>
-            </svg>
-          </div>
+      {hasRef && (
+        <div style={{ background: 'rgba(201,168,76,.05)', border: '1px solid rgba(201,168,76,.18)', borderRadius: 9, padding: '10px 12px', display: 'flex', gap: 10 }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
+            <circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>
+          </svg>
           <div>
-            <div style={{ fontSize: 10, color: 'var(--gold)', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 4 }}>Belajar dari Kesalahan</div>
-            <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>{decision.reflection}</p>
+            <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--gold)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 4 }}>Belajar dari Kesalahan</div>
+            <p style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.65 }}>{d.reflection}</p>
           </div>
         </div>
       )}
 
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+      {/* Header row */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <ActionBadge action={decision.action} />
-          <span className="font-mono" style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{decision.symbol}</span>
-          {decision.strategy && (
-            <span style={{ fontSize: 10, color: 'var(--text-muted)', background: 'var(--bg-secondary)', border: '1px solid var(--border)', padding: '2px 7px', borderRadius: 6, fontWeight: 500 }}>
-              {decision.strategy}
+          <Badge action={d.action} />
+          <span className="mono" style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{d.symbol}</span>
+          {d.strategy && (
+            <span style={{ fontSize: 9, color: 'var(--text-3)', background: 'var(--bg)', border: '1px solid var(--border)', padding: '2px 7px', borderRadius: 5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase' }}>
+              {d.strategy}
             </span>
           )}
         </div>
-        {time && <span className="font-mono" style={{ fontSize: 10, color: 'var(--text-muted)', flexShrink: 0 }}>{time}</span>}
+        {time && <span className="mono" style={{ fontSize: 10, color: 'var(--text-3)', flexShrink: 0 }}>{time}</span>}
       </div>
 
       {/* Price pills */}
-      {decision.action !== 'HOLD' && (
+      {d.action !== 'HOLD' && (
         <div style={{ display: 'flex', gap: 6 }}>
-          <PricePill label="Entry" value={Number(decision.entry).toFixed(2)} highlight />
-          <PricePill label="SL" value={Number(decision.sl).toFixed(2)} />
-          <PricePill label="TP" value={Number(decision.tp).toFixed(2)} />
-          <PricePill label="Lot" value={String(decision.lot ?? '0.01')} />
+          <PricePill label="Entry" value={Number(d.entry).toFixed(2)} highlight />
+          <PricePill label="SL" value={Number(d.sl).toFixed(2)} />
+          <PricePill label="TP" value={Number(d.tp).toFixed(2)} />
+          <PricePill label="Lot" value={String(d.lot ?? '0.01')} />
         </div>
       )}
 
       {/* Confidence */}
       <div>
-        <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Confidence</div>
-        <ConfidenceBar value={Number(decision.confidence)} />
+        <div className="label" style={{ marginBottom: 6 }}>Confidence</div>
+        <ConfBar value={Number(d.confidence)} />
       </div>
 
       {/* Reasoning */}
-      {decision.reasoning && (
+      {d.reasoning && (
         <div>
-          <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Analisis AI</div>
-          <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.65 }}>{decision.reasoning}</p>
+          <div className="label" style={{ marginBottom: 6 }}>Analisis AI</div>
+          <p style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.7 }}>{d.reasoning}</p>
         </div>
       )}
 
       {/* Trade result */}
-      {(decision.trade_status === 'TP_HIT' || decision.trade_status === 'SL_HIT') && (
+      {(d.trade_status === 'TP_HIT' || d.trade_status === 'SL_HIT') && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '8px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700,
-          background: decision.trade_status === 'TP_HIT' ? 'var(--green-dim)' : 'var(--red-dim)',
-          border: `1px solid ${decision.trade_status === 'TP_HIT' ? 'rgba(0,214,143,0.25)' : 'rgba(255,71,87,0.25)'}`,
-          color: decision.trade_status === 'TP_HIT' ? 'var(--green)' : 'var(--red)',
+          background: d.trade_status === 'TP_HIT' ? 'var(--green-d)' : 'var(--red-d)',
+          border: `1px solid ${d.trade_status === 'TP_HIT' ? 'rgba(0,214,143,.2)' : 'rgba(245,54,92,.2)'}`,
+          color: d.trade_status === 'TP_HIT' ? 'var(--green)' : 'var(--red)',
         }}>
-          <span>{decision.trade_status === 'TP_HIT' ? '✓ Take Profit' : '✗ Stop Loss'}</span>
-          {decision.trade_pnl !== undefined && (
-            <span className="font-mono" style={{ marginLeft: 'auto' }}>
-              {Number(decision.trade_pnl) >= 0 ? '+' : ''}${Number(decision.trade_pnl).toFixed(2)}
+          <span>{d.trade_status === 'TP_HIT' ? '✓ Take Profit' : '✗ Stop Loss'}</span>
+          {d.trade_pnl !== undefined && (
+            <span className="mono" style={{ marginLeft: 'auto' }}>
+              {Number(d.trade_pnl) >= 0 ? '+' : ''}${Number(d.trade_pnl).toFixed(2)}
             </span>
           )}
         </div>
@@ -132,16 +123,17 @@ function DecisionCard({ decision, isLatest }: { decision: AIDecision; isLatest: 
 
 function ThinkingCard() {
   return (
-    <div className="animate-fade-in" style={{
-      background: 'var(--bg-card)', border: '1px solid rgba(201,168,76,0.25)',
-      borderRadius: 12, padding: '16px', display: 'flex', alignItems: 'center', gap: 14,
+    <div className="fade-in" style={{
+      background: 'var(--bg-card)', border: '1px solid rgba(201,168,76,.2)',
+      borderRadius: 'var(--radius)', padding: '14px',
+      display: 'flex', alignItems: 'center', gap: 13,
     }}>
       <div style={{
-        width: 40, height: 40, borderRadius: 10, flexShrink: 0,
-        background: 'var(--gold-glow)', border: '1px solid rgba(201,168,76,0.3)',
+        width: 38, height: 38, borderRadius: 10, flexShrink: 0,
+        background: 'var(--gold-glow)', border: '1px solid rgba(201,168,76,.25)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }} className="animate-pulse-gold">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      }} className="pulse-gold">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"/><circle cx="12" cy="12" r="10"/>
         </svg>
       </div>
@@ -149,57 +141,66 @@ function ThinkingCard() {
         <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--gold)', marginBottom: 3 }}>
           DzeckAI menganalisis pasar
         </div>
-        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-          Memproses data XAUUSD &amp; makro<span className="thinking-animation" />
+        <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+          Memproses data XAUUSD &amp; makro<span className="thinking" />
         </div>
       </div>
     </div>
   );
 }
 
-export function AIThinkingFeed({ decisions, isThinking, marketStatus }: AIThinkingFeedProps) {
-  const feedRef = useRef<HTMLDivElement>(null);
+export function AIThinkingFeed({ decisions, isThinking, marketStatus }: Props) {
+  const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (feedRef.current) feedRef.current.scrollTop = 0;
+    if (ref.current) ref.current.scrollTop = 0;
   }, [decisions.length]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      {/* Market closed banner */}
-      {marketStatus === 'closed' && (
-        <div style={{
-          padding: '10px 14px', borderRadius: 10, fontSize: 12,
-          background: 'rgba(255,71,87,0.06)', border: '1px solid rgba(255,71,87,0.18)',
-          display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-secondary)',
-        }}>
-          <span style={{ color: 'var(--red)', fontWeight: 700 }}>Market Tutup</span>
-          <span>— AI menunggu XAUUSD buka kembali</span>
-        </div>
-      )}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: '100%', minHeight: 0 }}>
 
-      {/* Header label */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2px' }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>AI Decision Feed</div>
-        <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 500 }}>
-          {marketStatus === 'open' ? '● Deriv Live' : marketStatus === 'closed' ? '○ Market Tutup' : '○ Connecting'}
+      {/* Top bar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2px', flexShrink: 0 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--gold)', letterSpacing: '.12em', textTransform: 'uppercase' }}>
+          AI Decision Feed
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <span style={{
+            width: 5, height: 5, borderRadius: '50%', background: marketStatus === 'open' ? 'var(--green)' : 'var(--text-3)', display: 'inline-block'
+          }} className={marketStatus === 'open' ? 'glow-dot' : ''} />
+          <span style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 500 }}>
+            {marketStatus === 'open' ? 'Deriv Live' : marketStatus === 'closed' ? 'Market Tutup' : 'Connecting'}
+          </span>
         </div>
       </div>
 
-      <div ref={feedRef} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {/* Market closed banner */}
+      {marketStatus === 'closed' && (
+        <div style={{
+          padding: '9px 13px', borderRadius: 9, fontSize: 12,
+          background: 'rgba(245,54,92,.06)', border: '1px solid rgba(245,54,92,.15)',
+          display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-2)', flexShrink: 0,
+        }}>
+          <span style={{ color: 'var(--red)', fontWeight: 700 }}>Market Tutup</span>
+          <span>— AI standby, menunggu XAUUSD buka</span>
+        </div>
+      )}
+
+      {/* Feed */}
+      <div ref={ref} style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, overflow: 'auto' }}>
         {isThinking && <ThinkingCard />}
 
         {decisions.length === 0 && !isThinking && (
-          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: '40px 20px', textAlign: 'center' }}>
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 12px' }}>
+          <div className="card" style={{ padding: '48px 20px', textAlign: 'center' }}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 12px' }}>
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
             </svg>
-            <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6, fontWeight: 500 }}>Menunggu keputusan AI...</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Loop trading dimulai saat market buka</div>
+            <div style={{ fontSize: 13, color: 'var(--text-2)', fontWeight: 500, marginBottom: 5 }}>Menunggu keputusan AI...</div>
+            <div style={{ fontSize: 11, color: 'var(--text-3)' }}>Loop trading aktif saat market buka</div>
           </div>
         )}
 
         {decisions.map((d, i) => (
-          <DecisionCard key={d.id ?? i} decision={d} isLatest={i === 0 && !isThinking} />
+          <Card key={d.id ?? i} d={d} latest={i === 0 && !isThinking} />
         ))}
       </div>
     </div>
