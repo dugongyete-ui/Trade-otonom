@@ -5,6 +5,7 @@ expertMode = true
 [userenv]
 
 [userenv.shared]
+P = "dSiKt22IuBoWi4VGoApoMHNVbKCJqoIn10DSbG0m"
 
 [nix]
 channel = "stable-25_05"
