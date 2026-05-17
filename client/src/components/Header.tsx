@@ -113,6 +113,20 @@ export function Header({
           </div>
         )}
 
+        {/* AI DIJEDA — explicit blinking red badge when paused */}
+        {aiPaused && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: '5px 11px', borderRadius: 20,
+            background: 'rgba(245,54,92,.18)', border: '1px solid rgba(245,54,92,.5)',
+            fontSize: 10, color: 'var(--red)', fontWeight: 800, letterSpacing: '.06em',
+            animation: 'ai-paused-blink 1.1s ease-in-out infinite',
+          }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--red)', display: 'inline-block', flexShrink: 0 }} className="pulse-gold" />
+            AI DIJEDA
+          </div>
+        )}
+
         {/* AI Pause/Resume toggle */}
         <button
           data-testid="btn-ai-pause-resume"
@@ -120,8 +134,8 @@ export function Header({
           style={{
             display: 'flex', alignItems: 'center', gap: 5,
             padding: '5px 10px', borderRadius: 20, cursor: 'pointer',
-            background: aiPaused ? 'rgba(245,54,92,.12)' : 'rgba(0,214,143,.08)',
-            border: `1px solid ${aiPaused ? 'rgba(245,54,92,.3)' : 'rgba(0,214,143,.2)'}`,
+            background: aiPaused ? 'rgba(245,54,92,.08)' : 'rgba(0,214,143,.08)',
+            border: `1px solid ${aiPaused ? 'rgba(245,54,92,.25)' : 'rgba(0,214,143,.2)'}`,
             fontSize: 10, color: aiPaused ? 'var(--red)' : 'var(--green)',
             fontWeight: 700, letterSpacing: '.03em', transition: 'all .2s',
           }}
@@ -130,8 +144,8 @@ export function Header({
             width: 5, height: 5, borderRadius: '50%',
             background: aiPaused ? 'var(--red)' : 'var(--green)',
             display: 'inline-block', flexShrink: 0,
-          }} className={aiPaused ? 'pulse-gold' : 'glow-dot'} />
-          {aiPaused ? L.aiPaused : L.aiActive}
+          }} className={aiPaused ? '' : 'glow-dot'} />
+          {aiPaused ? L.resumeAI : L.aiActive}
         </button>
 
         {/* Thinking */}

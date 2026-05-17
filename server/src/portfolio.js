@@ -93,7 +93,7 @@ export async function getPortfolioStats() {
 
 async function buildEquityHistory(closedTrades) {
   const startTs = Date.now() - 365 * 24 * 60 * 60 * 1000;
-  const history = [{ time: 'Start', value: INITIAL_BALANCE, rawTime: new Date(startTs).toISOString() }];
+  const history = [{ time: 'Awal', value: INITIAL_BALANCE, rawTime: new Date(startTs).toISOString() }];
   let running = INITIAL_BALANCE;
   const sorted = [...closedTrades].reverse();
   for (const t of sorted) {
