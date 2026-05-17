@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { IconChevronDown, IconChevronRight, IconTrendUp, IconTrendDown, IconChevronLeft } from './Icons';
 import type { Trade } from '../types';
 
 interface TradeHistoryTableProps {
@@ -10,22 +9,22 @@ interface TradeHistoryTableProps {
   onPageChange: (page: number) => void;
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const config: Record<string, { label: string; color: string; bg: string; border: string }> = {
-    TP_HIT: { label: 'TP Hit', color: 'var(--green)', bg: 'rgba(0,200,83,0.1)', border: 'rgba(0,200,83,0.3)' },
-    SL_HIT: { label: 'SL Hit', color: 'var(--red)', bg: 'rgba(255,23,68,0.1)', border: 'rgba(255,23,68,0.3)' },
-    OPEN: { label: 'Open', color: 'var(--gold)', bg: 'rgba(212,175,55,0.1)', border: 'rgba(212,175,55,0.3)' },
-    CLOSED: { label: 'Closed', color: 'var(--text-muted)', bg: 'var(--bg-secondary)', border: 'var(--border)' }
+function StatusPill({ status }: { status: string }) {
+  const map: Record<string, { label: string; color: string; bg: string; border: string }> = {
+    TP_HIT: { label: 'TP Hit', color: 'var(--green)', bg: 'var(--green-dim)', border: 'rgba(0,214,143,0.25)' },
+    SL_HIT: { label: 'SL Hit', color: 'var(--red)', bg: 'var(--red-dim)', border: 'rgba(255,71,87,0.25)' },
+    OPEN: { label: 'Open', color: 'var(--gold)', bg: 'var(--gold-glow)', border: 'rgba(201,168,76,0.25)' },
+    CLOSED: { label: 'Closed', color: 'var(--text-muted)', bg: 'var(--bg-secondary)', border: 'var(--border)' },
   };
-  const c = config[status] || config.CLOSED;
+  const c = map[status] || map.CLOSED;
   return (
-    <span className="px-1.5 py-0.5 rounded text-xs font-semibold" style={{ color: c.color, background: c.bg, border: `1px solid ${c.border}` }}>
+    <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700, color: c.color, background: c.bg, border: `1px solid ${c.border}`, whiteSpace: 'nowrap' }}>
       {c.label}
     </span>
   );
 }
 
-function TradeRow({ trade }: { trade: Trade }) {
+function TradeCard({ trade }: { trade: Trade }) {
   const [expanded, setExpanded] = useState(false);
   const pnl = Number(trade.pnl || 0);
   const isProfit = pnl > 0;
@@ -33,68 +32,58 @@ function TradeRow({ trade }: { trade: Trade }) {
   const hasReflection = !!trade.reflection;
 
   return (
-    <>
-      <tr
-        className="border-b transition-colors duration-150 cursor-pointer"
-        style={{ borderColor: 'var(--border)' }}
-        onClick={() => hasReflection && setExpanded(!expanded)}
-        data-testid={`trade-row-${trade.id}`}
-      >
-        <td className="py-2 pl-3 pr-2">
-          <div className="flex items-center gap-1">
-            {hasReflection ? (
-              expanded
-                ? <IconChevronDown size={12} style={{ color: 'var(--gold)' }} />
-                : <IconChevronRight size={12} style={{ color: 'var(--text-muted)' }} />
-            ) : <div style={{ width: 12 }} />}
-            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{entryTime}</span>
-          </div>
-        </td>
-        <td className="py-2 px-2">
-          <div className="flex items-center gap-1">
-            {trade.action === 'BUY'
-              ? <IconTrendUp size={10} style={{ color: 'var(--green)' }} />
-              : <IconTrendDown size={10} style={{ color: 'var(--red)' }} />
-            }
-            <span className="text-xs font-semibold" style={{ color: trade.action === 'BUY' ? 'var(--green)' : 'var(--red)' }}>
-              {trade.action}
-            </span>
-          </div>
-        </td>
-        <td className="py-2 px-2">
-          <div className="font-mono text-xs" style={{ color: 'var(--text-primary)' }}>
+    <div
+      onClick={() => hasReflection && setExpanded(!expanded)}
+      style={{
+        background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px',
+        cursor: hasReflection ? 'pointer' : 'default', transition: 'border-color 0.15s',
+        display: 'flex', flexDirection: 'column', gap: 10,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {/* Action */}
+        <span className="font-mono" style={{
+          fontSize: 12, fontWeight: 800, color: trade.action === 'BUY' ? 'var(--green)' : 'var(--red)',
+          background: trade.action === 'BUY' ? 'var(--green-dim)' : 'var(--red-dim)',
+          border: `1px solid ${trade.action === 'BUY' ? 'rgba(0,214,143,0.25)' : 'rgba(255,71,87,0.25)'}`,
+          padding: '2px 8px', borderRadius: 6,
+        }}>
+          {trade.action}
+        </span>
+
+        {/* Entry / Close */}
+        <div style={{ flex: 1 }}>
+          <div className="font-mono" style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
             {Number(trade.entry).toFixed(2)}
+            {trade.close_price && <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}> → {Number(trade.close_price).toFixed(2)}</span>}
           </div>
-          {trade.close_price && (
-            <div className="font-mono text-xs" style={{ color: 'var(--text-muted)' }}>
-              → {Number(trade.close_price).toFixed(2)}
-            </div>
-          )}
-        </td>
-        <td className="py-2 px-2">
-          {trade.status !== 'OPEN' ? (
-            <span className="font-mono text-xs font-bold" style={{ color: isProfit ? 'var(--green)' : pnl < 0 ? 'var(--red)' : 'var(--text-muted)' }}>
-              {isProfit ? '+' : ''}${pnl.toFixed(2)}
-            </span>
-          ) : (
-            <span className="font-mono text-xs" style={{ color: 'var(--text-muted)' }}>—</span>
-          )}
-        </td>
-        <td className="py-2 pr-3">
-          <StatusBadge status={trade.status} />
-        </td>
-      </tr>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{entryTime}</div>
+        </div>
+
+        {/* PnL */}
+        {trade.status !== 'OPEN' && (
+          <div className="font-mono" style={{ fontSize: 13, fontWeight: 700, color: isProfit ? 'var(--green)' : pnl < 0 ? 'var(--red)' : 'var(--text-muted)', textAlign: 'right' }}>
+            {isProfit ? '+' : ''}${pnl.toFixed(2)}
+          </div>
+        )}
+
+        <StatusPill status={trade.status} />
+
+        {hasReflection && (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+            style={{ flexShrink: 0, transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}>
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        )}
+      </div>
+
       {expanded && hasReflection && (
-        <tr style={{ background: 'rgba(212,175,55,0.04)' }} data-testid={`trade-reflection-${trade.id}`}>
-          <td colSpan={5} className="px-4 py-3">
-            <div className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-              <span className="font-semibold" style={{ color: 'var(--gold)' }}>Refleksi AI: </span>
-              {trade.reflection}
-            </div>
-          </td>
-        </tr>
+        <div className="animate-fade-in" style={{ background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 8, padding: '10px 12px' }}>
+          <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Refleksi AI: </span>
+          <span style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>{trade.reflection}</span>
+        </div>
       )}
-    </>
+    </div>
   );
 }
 
@@ -103,28 +92,25 @@ export function TradeHistoryTable({ trades, loading, page, totalPages, onPageCha
   const openTrades = trades.filter(t => t.status === 'OPEN');
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="px-1">
-        <div className="text-xs font-semibold tracking-widest uppercase mb-2" style={{ color: 'var(--gold)', letterSpacing: '0.12em' }}>
-          Riwayat Trade
-        </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase', padding: '0 2px' }}>
+        Riwayat Trade
       </div>
 
+      {/* Open trades */}
       {openTrades.length > 0 && (
-        <div className="card p-3 mb-1" data-testid="open-trades-section">
-          <div className="text-xs font-semibold mb-2 flex items-center gap-1.5" style={{ color: 'var(--gold)' }}>
-            <div className="w-2 h-2 rounded-full glow-green" style={{ background: 'var(--green)' }} />
+        <div style={{ background: 'var(--bg-card)', border: '1px solid rgba(0,214,143,0.2)', borderRadius: 10, padding: '12px 14px' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--green)', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+            <div className="glow-green" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)' }} />
             Posisi Terbuka ({openTrades.length})
           </div>
           {openTrades.map(t => (
-            <div key={t.id} className="flex items-center justify-between py-1.5 text-xs" data-testid={`open-trade-${t.id}`}>
-              <div className="flex items-center gap-2">
-                <span className="font-mono" style={{ color: t.action === 'BUY' ? 'var(--green)' : 'var(--red)' }}>
-                  {t.action}
-                </span>
-                <span style={{ color: 'var(--text-primary)' }}>@ {Number(t.entry).toFixed(2)}</span>
+            <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span className="font-mono" style={{ fontSize: 12, fontWeight: 700, color: t.action === 'BUY' ? 'var(--green)' : 'var(--red)' }}>{t.action}</span>
+                <span style={{ fontSize: 12, color: 'var(--text-primary)' }}>@ {Number(t.entry).toFixed(2)}</span>
               </div>
-              <span className="font-mono font-semibold" style={{ color: Number(t.open_pnl || 0) >= 0 ? 'var(--green)' : 'var(--red)' }}>
+              <span className="font-mono" style={{ fontSize: 13, fontWeight: 700, color: Number(t.open_pnl || 0) >= 0 ? 'var(--green)' : 'var(--red)' }}>
                 {Number(t.open_pnl || 0) >= 0 ? '+' : ''}${Number(t.open_pnl || 0).toFixed(2)}
               </span>
             </div>
@@ -132,72 +118,49 @@ export function TradeHistoryTable({ trades, loading, page, totalPages, onPageCha
         </div>
       )}
 
-      <div className="card overflow-hidden" data-testid="trade-history-table">
-        <div className="overflow-x-auto">
-          <table className="w-full" style={{ minWidth: '300px' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
-                {['Waktu', 'Arah', 'Entry→Close', 'PnL', 'Status'].map(h => (
-                  <th key={h} className="text-left py-2 px-2 text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {loading && (
-                <tr>
-                  <td colSpan={5} className="py-6 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
-                    Memuat data...
-                  </td>
-                </tr>
-              )}
-              {!loading && closedTrades.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="py-6 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
-                    Belum ada trade yang selesai
-                  </td>
-                </tr>
-              )}
-              {!loading && closedTrades.map(t => (
-                <TradeRow key={t.id} trade={t} />
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {totalPages > 1 && (
-          <div
-            className="flex items-center justify-between px-3 py-2"
-            style={{ borderTop: '1px solid var(--border)', background: 'var(--bg-secondary)' }}
-            data-testid="pagination-controls"
-          >
-            <button
-              onClick={() => onPageChange(Math.max(1, page - 1))}
-              disabled={page === 1}
-              className="flex items-center gap-1 text-xs px-2 py-1 rounded disabled:opacity-30"
-              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-secondary)', cursor: page === 1 ? 'not-allowed' : 'pointer' }}
-              data-testid="pagination-prev"
-            >
-              <IconChevronLeft size={12} />
-              Prev
-            </button>
-            <span className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
-              {page} / {totalPages}
-            </span>
-            <button
-              onClick={() => onPageChange(Math.min(totalPages, page + 1))}
-              disabled={page === totalPages}
-              className="flex items-center gap-1 text-xs px-2 py-1 rounded disabled:opacity-30"
-              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-secondary)', cursor: page === totalPages ? 'not-allowed' : 'pointer' }}
-              data-testid="pagination-next"
-            >
-              Next
-              <IconChevronRight size={12} />
-            </button>
+      {/* Closed trades */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {loading && (
+          <div style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)', fontSize: 13 }}>Memuat...</div>
+        )}
+        {!loading && closedTrades.length === 0 && (
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: '30px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+            Belum ada trade yang selesai
           </div>
         )}
+        {!loading && closedTrades.map(t => <TradeCard key={t.id} trade={t} />)}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 2px' }}>
+          <button
+            onClick={() => onPageChange(Math.max(1, page - 1))}
+            disabled={page === 1}
+            style={{
+              padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+              background: 'var(--bg-card)', border: '1px solid var(--border)',
+              color: page === 1 ? 'var(--text-muted)' : 'var(--text-secondary)',
+              cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1,
+            }}
+          >
+            ← Prev
+          </button>
+          <span className="font-mono" style={{ fontSize: 11, color: 'var(--text-muted)' }}>{page} / {totalPages}</span>
+          <button
+            onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+            disabled={page === totalPages}
+            style={{
+              padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+              background: 'var(--bg-card)', border: '1px solid var(--border)',
+              color: page === totalPages ? 'var(--text-muted)' : 'var(--text-secondary)',
+              cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.4 : 1,
+            }}
+          >
+            Next →
+          </button>
+        </div>
+      )}
     </div>
   );
 }

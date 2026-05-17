@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { IconActivity, IconWifi, IconWifiOff, IconLoader, IconSignal, IconDatabase } from './Icons';
 
 interface HeaderProps {
   wsStatus: 'connecting' | 'connected' | 'disconnected' | 'error';
@@ -13,113 +12,97 @@ export function Header({ wsStatus, isThinking, marketStatus = 'unknown', derivCo
   const [time, setTime] = useState(new Date());
 
   useEffect(() => {
-    const interval = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(interval);
+    const iv = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(iv);
   }, []);
 
-  const formatTime = (date: Date) =>
-    date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Jakarta' });
+  const formatTime = (d: Date) =>
+    d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Jakarta' });
 
-  const formatDate = (date: Date) =>
-    date.toLocaleDateString('id-ID', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', timeZone: 'Asia/Jakarta' });
-
-  const marketColor = marketStatus === 'open' ? 'var(--green)' : marketStatus === 'closed' ? 'var(--red)' : 'var(--text-muted)';
-  const marketLabel = marketStatus === 'open' ? 'Market Buka' : marketStatus === 'closed' ? 'Market Tutup' : 'Menghubungkan...';
+  const marketOpen = marketStatus === 'open';
+  const marketClosed = marketStatus === 'closed';
 
   return (
-    <header
-      className="col-span-full flex items-center justify-between px-4 py-3 rounded-lg"
-      style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
-      data-testid="header"
-    >
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2">
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm"
-            style={{ background: 'linear-gradient(135deg, var(--gold) 0%, var(--gold-dim) 100%)', color: '#000' }}
-          >
-            D
-          </div>
-          <div>
-            <div className="font-bold text-base tracking-wide" style={{ color: 'var(--gold)' }}>
-              DzeckAI Trader
-            </div>
-            <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              Autonomous AI Trading System
-            </div>
-          </div>
+    <header style={{
+      background: 'var(--bg-secondary)',
+      borderBottom: '1px solid var(--border-bright)',
+      padding: '0 16px',
+      height: '56px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      flexShrink: 0,
+      position: 'sticky',
+      top: 0,
+      zIndex: 50,
+    }}>
+      {/* Left: Logo */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{
+          width: '32px', height: '32px', borderRadius: '8px', flexShrink: 0,
+          background: 'linear-gradient(135deg, var(--gold) 0%, var(--gold-dim) 100%)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontWeight: 700, fontSize: '14px', color: '#000', letterSpacing: '-0.5px'
+        }}>
+          DZ
         </div>
-
-        <div
-          className="ml-4 px-3 py-1 rounded text-xs font-medium"
-          style={{ background: 'rgba(212, 175, 55, 0.1)', border: '1px solid var(--gold-dim)', color: 'var(--gold)' }}
-        >
-          LIVE PAPER TRADING
+        <div>
+          <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--gold)', letterSpacing: '0.02em', lineHeight: 1.2 }}>
+            DzeckAI Trader
+          </div>
+          <div style={{ fontSize: '9px', color: 'var(--text-muted)', fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            Paper Trading
+          </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      {/* Right: Status pills */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         {isThinking && (
-          <div
-            className="flex items-center gap-2 px-3 py-1 rounded text-xs animate-fade-in"
-            style={{ background: 'rgba(212, 175, 55, 0.1)', border: '1px solid var(--gold-dim)', color: 'var(--gold)' }}
-            data-testid="thinking-indicator"
-          >
-            <IconLoader size={12} className="animate-spin" />
-            <span>AI Sedang Berpikir...</span>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '5px',
+            padding: '3px 8px', borderRadius: '20px',
+            background: 'var(--gold-glow)', border: '1px solid rgba(201,168,76,0.3)',
+            fontSize: '10px', color: 'var(--gold)', fontWeight: 600,
+          }}>
+            <span className="animate-pulse-gold" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--gold)', display: 'inline-block' }} />
+            Analisis...
           </div>
         )}
 
-        <div
-          className="flex items-center gap-1.5 px-2 py-1 rounded text-xs"
-          style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}
-          data-testid="deriv-status"
-          title={`Deriv WS: ${derivConnected ? 'Connected' : 'Disconnected'}`}
-        >
-          <IconDatabase size={11} style={{ color: derivConnected ? 'var(--green)' : 'var(--text-muted)' }} />
-          <span style={{ color: marketColor }}>{marketLabel}</span>
-          {currentPrice && (
-            <span className="font-mono font-semibold" style={{ color: 'var(--gold)', marginLeft: 4 }}>
+        {/* Market & Price */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '5px',
+          padding: '3px 8px', borderRadius: '20px',
+          background: marketOpen ? 'rgba(0,214,143,0.08)' : 'rgba(255,71,87,0.08)',
+          border: `1px solid ${marketOpen ? 'rgba(0,214,143,0.2)' : 'rgba(255,71,87,0.2)'}`,
+          fontSize: '10px',
+        }}>
+          <span style={{
+            width: 5, height: 5, borderRadius: '50%', flexShrink: 0,
+            background: marketOpen ? 'var(--green)' : marketClosed ? 'var(--red)' : 'var(--text-muted)',
+          }} />
+          {currentPrice ? (
+            <span className="font-mono" style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: '11px' }}>
               {Number(currentPrice).toFixed(2)}
+            </span>
+          ) : (
+            <span style={{ color: marketClosed ? 'var(--red)' : 'var(--text-muted)', fontWeight: 500 }}>
+              {marketClosed ? 'Tutup' : 'Connecting'}
             </span>
           )}
         </div>
 
-        <div className="text-right">
-          <div
-            className="font-mono text-lg font-semibold"
-            style={{ color: 'var(--text-primary)' }}
-            data-testid="live-clock"
-          >
-            {formatTime(time)}
-          </div>
-          <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-            {formatDate(time)} WIB
-          </div>
+        {/* Clock */}
+        <div className="font-mono" style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', letterSpacing: '0.02em' }}>
+          {formatTime(time)}
         </div>
 
-        <div
-          className="flex items-center gap-2 px-2 py-1 rounded text-xs"
-          style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}
-          data-testid="ws-status"
-        >
-          {wsStatus === 'connected' ? (
-            <>
-              <IconWifi size={12} style={{ color: 'var(--green)' }} />
-              <span style={{ color: 'var(--green)' }}>Live</span>
-            </>
-          ) : wsStatus === 'connecting' ? (
-            <>
-              <IconActivity size={12} className="animate-pulse-gold" style={{ color: 'var(--gold)' }} />
-              <span style={{ color: 'var(--gold)' }}>Connecting</span>
-            </>
-          ) : (
-            <>
-              <IconWifiOff size={12} style={{ color: 'var(--red)' }} />
-              <span style={{ color: 'var(--red)' }}>Offline</span>
-            </>
-          )}
-        </div>
+        {/* WS dot */}
+        <div style={{
+          width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+          background: wsStatus === 'connected' ? 'var(--green)' : wsStatus === 'connecting' ? 'var(--gold)' : 'var(--red)',
+        }} className={wsStatus === 'connected' ? 'glow-green' : ''} title={`WebSocket: ${wsStatus}`} />
       </div>
     </header>
   );

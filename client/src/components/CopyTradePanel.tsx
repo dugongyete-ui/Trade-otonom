@@ -1,63 +1,47 @@
 import { useState } from 'react';
-import { IconCopy, IconCheck, IconInfo, IconTrendUp, IconTrendDown } from './Icons';
 import type { Signal } from '../types';
 
-interface CopyTradePanelProps {
-  signal: Signal;
-}
+interface CopyTradePanelProps { signal: Signal; }
 
-function CopyButton({ text, label }: { text: string; label: string }) {
+function CopyBtn({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
-
-  const handleCopy = () => {
+  const handle = () => {
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
   };
-
   return (
-    <button
-      onClick={handleCopy}
-      className="flex items-center gap-1 text-xs px-2 py-1 rounded transition-all duration-200"
-      style={{
-        background: copied ? 'rgba(0,200,83,0.1)' : 'var(--bg-secondary)',
-        border: `1px solid ${copied ? 'rgba(0,200,83,0.3)' : 'var(--border)'}`,
-        color: copied ? 'var(--green)' : 'var(--text-secondary)',
-        cursor: 'pointer'
-      }}
-      data-testid={`copy-btn-${label}`}
-    >
-      {copied ? <IconCheck size={10} /> : <IconCopy size={10} />}
-      {copied ? 'Copied!' : label}
+    <button onClick={handle} style={{
+      padding: '4px 10px', borderRadius: 6, fontSize: 10, fontWeight: 600, cursor: 'pointer',
+      background: copied ? 'rgba(0,214,143,0.12)' : 'var(--bg-secondary)',
+      border: `1px solid ${copied ? 'rgba(0,214,143,0.3)' : 'var(--border)'}`,
+      color: copied ? 'var(--green)' : 'var(--text-muted)',
+      transition: 'all 0.2s', flexShrink: 0,
+    }}>
+      {copied ? '✓ Copied' : 'Copy'}
     </button>
   );
 }
 
-function SignalRow({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+function SignalRow({ label, value, gold }: { label: string; value: string; gold?: boolean }) {
   return (
-    <div className="flex items-center justify-between py-2" style={{ borderBottom: '1px solid var(--border)' }}>
-      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{label}</span>
-      <div className="flex items-center gap-2">
-        <span
-          className="font-mono text-sm font-semibold"
-          style={{ color: highlight ? 'var(--gold)' : 'var(--text-primary)' }}
-        >
-          {value}
-        </span>
-        <CopyButton text={value} label="copy" />
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+      <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>{label}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span className="font-mono" style={{ fontSize: 14, fontWeight: 700, color: gold ? 'var(--gold)' : 'var(--text-primary)' }}>{value}</span>
+        <CopyBtn text={value} />
       </div>
     </div>
   );
 }
 
 const MT5_STEPS = [
-  'Buka MetaTrader 5 di PC/HP kamu',
-  'Klik kanan pada chart XAUUSD',
-  'Pilih "Trading" → "New Order"',
+  'Buka MetaTrader 5 di PC / HP',
+  'Klik kanan chart XAUUSD → "Trading" → "New Order"',
   'Isi semua field sesuai signal di atas',
-  'Klik "Sell by Market" atau "Buy by Market"',
-  'Pasang SL & TP setelah order terisi'
+  'Klik "Buy by Market" atau "Sell by Market"',
+  'Pasang SL & TP setelah order terisi',
 ];
 
 export function CopyTradePanel({ signal }: CopyTradePanelProps) {
@@ -68,16 +52,11 @@ export function CopyTradePanel({ signal }: CopyTradePanelProps) {
 
   if (!displayData) {
     return (
-      <div className="flex flex-col gap-3">
-        <div className="px-1">
-          <div className="text-xs font-semibold tracking-widest uppercase mb-2" style={{ color: 'var(--gold)', letterSpacing: '0.12em' }}>
-            Copy Trade MT5
-          </div>
-        </div>
-        <div className="card p-4 text-center">
-          <IconInfo size={20} className="mx-auto mb-2" style={{ color: 'var(--text-muted)' }} />
-          <div className="text-sm" style={{ color: 'var(--text-muted)' }}>Menunggu signal AI...</div>
-        </div>
+      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: '40px 20px', textAlign: 'center' }}>
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 12px' }}>
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+        </svg>
+        <div style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 500 }}>Menunggu signal AI...</div>
       </div>
     );
   }
@@ -87,97 +66,74 @@ export function CopyTradePanel({ signal }: CopyTradePanelProps) {
   const sl = Number(displayData.sl).toFixed(2);
   const tp = Number(displayData.tp).toFixed(2);
   const lot = activeSignal ? Number(activeSignal.lot).toFixed(2) : '0.01';
-  const rr = Math.abs((Number(tp) - Number(entry)) / (Number(entry) - Number(sl))).toFixed(2);
-
+  const denominator = Math.abs(Number(entry) - Number(sl));
+  const rr = denominator > 0 ? (Math.abs(Number(tp) - Number(entry)) / denominator).toFixed(2) : '—';
   const actionColor = action === 'BUY' ? 'var(--green)' : action === 'SELL' ? 'var(--red)' : 'var(--text-muted)';
-  const ActionIcon = action === 'BUY' ? IconTrendUp : IconTrendDown;
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="px-1">
-        <div className="text-xs font-semibold tracking-widest uppercase mb-2" style={{ color: 'var(--gold)', letterSpacing: '0.12em' }}>
-          Copy Trade MT5
-        </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* Status badge */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, fontSize: 12, fontWeight: 600,
+        background: hasActive ? 'var(--green-dim)' : 'var(--bg-card)',
+        border: `1px solid ${hasActive ? 'rgba(0,214,143,0.25)' : 'var(--border)'}`,
+        color: hasActive ? 'var(--green)' : 'var(--text-muted)',
+      }}>
+        <div style={{ width: 7, height: 7, borderRadius: '50%', background: hasActive ? 'var(--green)' : 'var(--text-muted)', flexShrink: 0 }} className={hasActive ? 'glow-green' : ''} />
+        {hasActive ? 'Signal Aktif — Posisi Terbuka' : 'Signal Terakhir — Tidak Ada Posisi Open'}
       </div>
 
-      {hasActive ? (
-        <div
-          className="px-3 py-2 rounded-md flex items-center gap-2 text-xs font-semibold"
-          style={{ background: 'rgba(0,200,83,0.1)', border: '1px solid rgba(0,200,83,0.3)', color: 'var(--green)' }}
-          data-testid="signal-active-badge"
-        >
-          <div className="w-2 h-2 rounded-full glow-green" style={{ background: 'var(--green)' }} />
-          Signal Aktif — Posisi Terbuka
-        </div>
-      ) : (
-        <div
-          className="px-3 py-2 rounded-md flex items-center gap-2 text-xs"
-          style={{ background: 'rgba(100,120,150,0.1)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
-          data-testid="signal-last-badge"
-        >
-          <IconInfo size={12} />
-          Signal Terakhir — Tidak Ada Posisi Open
-        </div>
-      )}
-
-      <div className="card p-3" data-testid="signal-details">
-        <div className="flex items-center justify-between mb-3">
-          <span className="font-mono text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
-            XAUUSD
-          </span>
-          <div
-            className="flex items-center gap-1.5 px-2 py-1 rounded text-xs font-bold"
-            style={{
-              background: `${actionColor}1A`,
-              border: `1px solid ${actionColor}4D`,
-              color: actionColor
-            }}
-            data-testid="signal-action-badge"
-          >
-            <ActionIcon size={11} />
+      {/* Signal card */}
+      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <span className="font-mono" style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>XAUUSD</span>
+          <span style={{
+            padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 800,
+            fontFamily: 'JetBrains Mono, monospace', letterSpacing: '0.06em',
+            background: action === 'BUY' ? 'var(--green-dim)' : action === 'SELL' ? 'var(--red-dim)' : 'rgba(61,81,102,0.2)',
+            border: `1px solid ${action === 'BUY' ? 'rgba(0,214,143,0.25)' : action === 'SELL' ? 'rgba(255,71,87,0.25)' : 'var(--border)'}`,
+            color: actionColor,
+          }}>
             {action}
-          </div>
+          </span>
         </div>
 
-        <SignalRow label="Entry Price" value={entry} highlight />
+        <SignalRow label="Entry Price" value={entry} gold />
         <SignalRow label="Stop Loss" value={sl} />
         <SignalRow label="Take Profit" value={tp} />
         <SignalRow label="Lot Size" value={lot} />
 
-        <div className="flex items-center justify-between py-2">
-          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Risk/Reward</span>
-          <span className="font-mono text-sm font-semibold" style={{ color: 'var(--gold)' }}>1:{rr}</span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 10 }}>
+          <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>Risk / Reward</span>
+          <span className="font-mono" style={{ fontSize: 14, fontWeight: 700, color: 'var(--gold)' }}>1 : {rr}</span>
         </div>
       </div>
 
+      {/* Open PnL */}
       {activeSignal && (
-        <div className="card p-3" data-testid="open-pnl-card">
-          <div className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Open PnL saat ini</div>
-          <div
-            className="font-mono text-lg font-bold"
-            style={{ color: Number(activeSignal.openPnl) >= 0 ? 'var(--green)' : 'var(--red)' }}
-          >
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 16px' }}>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Open PnL</div>
+          <div className="font-mono" style={{ fontSize: 22, fontWeight: 700, color: Number(activeSignal.openPnl) >= 0 ? 'var(--green)' : 'var(--red)' }}>
             {Number(activeSignal.openPnl) >= 0 ? '+' : ''}${Number(activeSignal.openPnl).toFixed(2)}
           </div>
         </div>
       )}
 
-      <div className="card p-3" data-testid="mt5-instructions">
-        <div className="text-xs font-semibold mb-3" style={{ color: 'var(--gold)' }}>
-          Cara Entry di MT5
-        </div>
-        <div className="flex flex-col gap-2">
+      {/* MT5 Steps */}
+      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px' }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12 }}>Cara Entry di MT5</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {MT5_STEPS.map((step, i) => (
-            <div key={i} className="flex items-start gap-2">
-              <div
-                className="w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold mt-0.5"
-                style={{ background: 'rgba(212,175,55,0.15)', color: 'var(--gold)', fontSize: '9px' }}
-              >
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+              <div style={{
+                width: 20, height: 20, borderRadius: 6, flexShrink: 0,
+                background: 'var(--gold-glow)', border: '1px solid rgba(201,168,76,0.2)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 9, fontWeight: 700, color: 'var(--gold)',
+              }}>
                 {i + 1}
               </div>
-              <span className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                {step}
-              </span>
+              <span style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6, paddingTop: 1 }}>{step}</span>
             </div>
           ))}
         </div>
