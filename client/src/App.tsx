@@ -137,24 +137,25 @@ export default function App() {
     return () => clearInterval(iv);
   }, [refetchAll]);
 
+  // Slow REST fallback (30s) — SSE is the primary price source
   useEffect(() => {
     function fetchStatus() {
       fetch('/api/market-status')
         .then(r => r.json())
         .then(d => {
-          setDerivStatus({
-            status:        d.status        as DerivMarketStatus['status'],
+          setDerivStatus(prev => ({
+            status:        (d.status        as DerivMarketStatus['status']) || prev.status,
             isConnected:   d.isConnected,
-            currentPrice:  d.currentPrice,
-            activeSymbol:  (d.activeSymbol  as DerivMarketStatus['activeSymbol'])  || 'XAUUSD',
-            xauusdStatus:  (d.xauusdStatus  as DerivMarketStatus['xauusdStatus'])  || 'unknown',
-          });
+            currentPrice:  d.currentPrice ?? prev.currentPrice,
+            activeSymbol:  ((d.activeSymbol  as DerivMarketStatus['activeSymbol'])  || prev.activeSymbol),
+            xauusdStatus:  ((d.xauusdStatus  as DerivMarketStatus['xauusdStatus'])  || prev.xauusdStatus),
+          }));
           if (d.aiPaused !== undefined) setAiPaused(d.aiPaused);
         })
         .catch(() => {});
     }
     fetchStatus();
-    const iv = setInterval(fetchStatus, 3000);
+    const iv = setInterval(fetchStatus, 30000);
     return () => clearInterval(iv);
   }, []);
 

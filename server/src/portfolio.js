@@ -92,18 +92,20 @@ export async function getPortfolioStats() {
 }
 
 async function buildEquityHistory(closedTrades) {
-  const history = [{ time: 'Start', value: INITIAL_BALANCE }];
+  const startTs = Date.now() - 365 * 24 * 60 * 60 * 1000;
+  const history = [{ time: 'Start', value: INITIAL_BALANCE, rawTime: new Date(startTs).toISOString() }];
   let running = INITIAL_BALANCE;
   const sorted = [...closedTrades].reverse();
   for (const t of sorted) {
     running += parseFloat(t.pnl || 0);
     history.push({
       time: new Date(t.close_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-      value: parseFloat(running.toFixed(2))
+      value: parseFloat(running.toFixed(2)),
+      rawTime: t.close_time,
     });
   }
   if (history.length < 2) {
-    history.push({ time: 'Now', value: running });
+    history.push({ time: 'Sekarang', value: running, rawTime: new Date().toISOString() });
   }
   return history;
 }

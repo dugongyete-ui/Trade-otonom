@@ -1,7 +1,7 @@
 export const L = {
   portfolio: 'Portofolio',
-  aiFeed: 'AI Feed',
-  signal: 'Signal',
+  aiFeed: 'Feed AI',
+  signal: 'Sinyal',
   history: 'Riwayat',
 
   totalEquity: 'Total Ekuitas',

@@ -52,7 +52,7 @@ export interface PortfolioStats {
   maxDrawdown: number;
   totalTrades: number;
   openTrades: number;
-  equityHistory: Array<{ time: string; value: number }>;
+  equityHistory: Array<{ time: string; value: number; rawTime?: string }>;
 }
 
 export interface Signal {

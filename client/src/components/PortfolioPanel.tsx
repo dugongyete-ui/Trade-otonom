@@ -42,7 +42,24 @@ function Stat({ label, value, color, sub }: { label: string; value: string; colo
   );
 }
 
+function SkeletonBox({ h = 14, w = '100%' }: { h?: number; w?: string }) {
+  return (
+    <div style={{
+      height: h, width: w, borderRadius: 6,
+      background: 'linear-gradient(90deg, var(--bg-card-2) 25%, var(--border) 50%, var(--bg-card-2) 75%)',
+      backgroundSize: '200% 100%',
+      animation: 'shimmer 1.5s infinite',
+    }} />
+  );
+}
+
 type EquityRange = 'today' | '7d' | 'all';
+
+interface EquityPoint {
+  time: string;
+  value: number;
+  rawTime?: string;
+}
 
 interface SessionStats {
   Asia: { trades: number; pnl: number; winRate: number };
@@ -67,7 +84,7 @@ function SessionCard({ name, session }: { name: string; session: { trades: numbe
   );
 }
 
-export function PortfolioPanel({ stats }: { stats: PortfolioStats }) {
+export function PortfolioPanel({ stats, loading }: { stats: PortfolioStats; loading?: boolean }) {
   const [equityRange, setEquityRange] = useState<EquityRange>('all');
 
   const ret = ((stats.balance - INITIAL_BALANCE) / INITIAL_BALANCE) * 100;
@@ -76,12 +93,29 @@ export function PortfolioPanel({ stats }: { stats: PortfolioStats }) {
   const chartColor = profit ? 'var(--green)' : 'var(--red)';
   const totalPnl  = stats.balance - INITIAL_BALANCE;
 
-  const filteredHistory = useMemo(() => {
-    const hist = stats.equityHistory || [];
+  const filteredHistory = useMemo((): EquityPoint[] => {
+    const hist = (stats.equityHistory || []) as EquityPoint[];
     if (equityRange === 'all') return hist;
-    if (equityRange === 'today') return hist.slice(-Math.max(hist.length - Math.floor(hist.length * 0.9), 1));
-    if (equityRange === '7d') return hist.slice(-Math.min(hist.length, 50));
-    return hist;
+
+    const now = Date.now();
+    let cutoff: number;
+    if (equityRange === 'today') {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      cutoff = todayStart.getTime();
+    } else {
+      cutoff = now - 7 * 24 * 60 * 60 * 1000;
+    }
+
+    const filtered = hist.filter(p => {
+      if (!p.rawTime) return false;
+      return new Date(p.rawTime).getTime() >= cutoff;
+    });
+
+    if (filtered.length === 0) return hist.slice(-5);
+    const firstFiltered = filtered[0];
+    const startPoint: EquityPoint = { time: 'Awal', value: firstFiltered.value, rawTime: firstFiltered.rawTime };
+    return [startPoint, ...filtered.slice(1)];
   }, [stats.equityHistory, equityRange]);
 
   const sessionStats = (stats as unknown as { sessionStats?: SessionStats }).sessionStats;
@@ -92,6 +126,27 @@ export function PortfolioPanel({ stats }: { stats: PortfolioStats }) {
     { key: '7d',   label: L.equity7Days },
     { key: 'all',  label: L.equityAll },
   ];
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <SkeletonBox h={10} w="60%" />
+          <SkeletonBox h={28} w="80%" />
+          <SkeletonBox h={10} w="40%" />
+          <SkeletonBox h={52} />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          {[1,2,3,4].map(i => (
+            <div key={i} style={{ background: 'var(--bg-card-2)', border: '1px solid var(--border)', borderRadius: 10, padding: '11px 13px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <SkeletonBox h={8} w="50%" />
+              <SkeletonBox h={16} w="70%" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

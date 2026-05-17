@@ -116,11 +116,15 @@ function Card({ d, latest }: { d: AIDecision; latest: boolean }) {
           color: d.trade_status === 'TP_HIT' ? 'var(--green)' : 'var(--red)',
         }}>
           <span>{d.trade_status === 'TP_HIT' ? '✓ Take Profit' : '✗ Stop Loss'}</span>
-          {d.trade_pnl !== undefined && (
-            <span className="mono" style={{ marginLeft: 'auto' }}>
-              {Number(d.trade_pnl) >= 0 ? '+' : ''}${Number(d.trade_pnl).toFixed(2)}
-            </span>
-          )}
+          {d.trade_pnl !== undefined && (() => {
+            const pnl = Number(d.trade_pnl);
+            const abs = Math.abs(pnl).toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+            return (
+              <span className="mono" style={{ marginLeft: 'auto' }}>
+                {pnl >= 0 ? '+' : '−'}Rp {abs}
+              </span>
+            );
+          })()}
         </div>
       )}
     </div>

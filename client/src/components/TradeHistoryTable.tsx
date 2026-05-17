@@ -134,7 +134,23 @@ export function TradeHistoryTable({ trades, loading, page, totalPages, onPageCha
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
         {loading && (
-          <div style={{ textAlign: 'center', padding: '28px', color: 'var(--text-3)', fontSize: 13 }}>{L.loading}</div>
+          <>
+            {[1,2,3].map(i => (
+              <div key={i} style={{
+                background: 'var(--bg-card)', border: '1px solid var(--border)',
+                borderRadius: 10, padding: '11px 13px', display: 'flex', flexDirection: 'column', gap: 8,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ width: 44, height: 22, borderRadius: 6, background: 'linear-gradient(90deg, var(--bg-card-2) 25%, var(--border) 50%, var(--bg-card-2) 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ height: 12, width: '50%', borderRadius: 4, background: 'linear-gradient(90deg, var(--bg-card-2) 25%, var(--border) 50%, var(--bg-card-2) 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+                    <div style={{ height: 9, width: '30%', borderRadius: 4, marginTop: 5, background: 'linear-gradient(90deg, var(--bg-card-2) 25%, var(--border) 50%, var(--bg-card-2) 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+                  </div>
+                  <div style={{ width: 60, height: 20, borderRadius: 6, background: 'linear-gradient(90deg, var(--bg-card-2) 25%, var(--border) 50%, var(--bg-card-2) 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+                </div>
+              </div>
+            ))}
+          </>
         )}
         {!loading && closed.length === 0 && (
           <div className="card" style={{ padding: '28px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>
