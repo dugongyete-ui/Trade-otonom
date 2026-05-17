@@ -1,11 +1,11 @@
 modules = ["nodejs-20", "postgresql-16"]
 [agent]
 expertMode = true
+stack = "FULLSTACK_JS"
 
 [userenv]
 
 [userenv.shared]
-P = "dSiKt22IuBoWi4VGoApoMHNVbKCJqoIn10DSbG0m"
 
 [nix]
 channel = "stable-25_05"
@@ -45,3 +45,8 @@ externalPort = 80
 [[ports]]
 localPort = 5001
 externalPort = 3000
+
+[deployment]
+deploymentTarget = "autoscale"
+run = ["node", "./dist/index.cjs"]
+build = ["npm", "run", "build"]
