@@ -47,6 +47,6 @@ localPort = 5001
 externalPort = 3000
 
 [deployment]
-deploymentTarget = "autoscale"
-run = ["node", "./dist/index.cjs"]
-build = ["npm", "run", "build"]
+deploymentTarget = "vm"
+run = ["bash", "-c", "NODE_ENV=production pnpm --filter server start"]
+build = ["bash", "-c", "pnpm --filter client build"]
