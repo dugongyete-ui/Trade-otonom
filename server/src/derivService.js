@@ -11,14 +11,14 @@ export const SYMBOL_CONFIG = {
     derivSymbol: XAUUSD_SYM,
     displayName: 'XAUUSD',
     fullName: 'Gold vs USD',
-    pipMultiplier: 100,
+    pipMultiplier: 10000,   // IDR scale: 1pt * 0.01lot = Rp 100
     type: 'forex',
   },
   V75: {
     derivSymbol: V75_SYM,
     displayName: 'Volatility 75',
     fullName: 'Volatility 75 Index',
-    pipMultiplier: 10,
+    pipMultiplier: 1000,    // IDR scale: 1pt * 0.01lot = Rp 10
     type: 'synthetic',
   },
 };

@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import type { Trade } from '../types';
 
+function fmtRp(value: number): string {
+  return 'Rp ' + Math.abs(value).toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
 function StatusPill({ status }: { status: string }) {
   const map: Record<string, { label: string; color: string; bg: string; border: string }> = {
     TP_HIT: { label: 'TP Hit',  color: 'var(--green)',  bg: 'var(--green-d)', border: 'rgba(0,214,143,.2)' },
@@ -19,9 +23,10 @@ function StatusPill({ status }: { status: string }) {
 function TradeCard({ trade }: { trade: Trade }) {
   const [open, setOpen] = useState(false);
   const pnl = Number(trade.pnl || 0);
-  const pos = pnl > 0;
+  const pos  = pnl > 0;
   const time = new Date(trade.open_time).toLocaleString('id-ID', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   const hasRef = !!trade.reflection;
+  const isV75 = trade.symbol?.includes('Volatility') || trade.symbol === 'V75';
 
   return (
     <div
@@ -46,11 +51,16 @@ function TradeCard({ trade }: { trade: Trade }) {
           {trade.action}
         </span>
 
-        {/* Price */}
+        {/* Symbol + price */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="mono" style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {Number(trade.entry).toFixed(2)}
-            {trade.close_price && <span style={{ color: 'var(--text-3)', fontWeight: 400 }}> → {Number(trade.close_price).toFixed(2)}</span>}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: isV75 ? '#a78bfa' : 'var(--gold)', letterSpacing: '.03em' }}>
+              {isV75 ? 'V75' : 'XAU'}
+            </span>
+            <span className="mono" style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {Number(trade.entry).toFixed(isV75 ? 3 : 2)}
+              {trade.close_price && <span style={{ color: 'var(--text-3)', fontWeight: 400 }}> → {Number(trade.close_price).toFixed(isV75 ? 3 : 2)}</span>}
+            </span>
           </div>
           <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 2 }}>{time}</div>
         </div>
@@ -58,7 +68,7 @@ function TradeCard({ trade }: { trade: Trade }) {
         {/* PnL */}
         {trade.status !== 'OPEN' && (
           <span className="mono" style={{ fontSize: 12, fontWeight: 700, color: pos ? 'var(--green)' : pnl < 0 ? 'var(--red)' : 'var(--text-3)', flexShrink: 0 }}>
-            {pos ? '+' : ''}${pnl.toFixed(2)}
+            {pos ? '+' : pnl < 0 ? '−' : ''}{fmtRp(pnl)}
           </span>
         )}
 
@@ -105,17 +115,22 @@ export function TradeHistoryTable({ trades, loading, page, totalPages, onPageCha
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)', display: 'inline-block' }} className="glow-dot" />
             Posisi Terbuka ({opens.length})
           </div>
-          {opens.map(t => (
-            <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--border)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span className="mono" style={{ fontSize: 12, fontWeight: 700, color: t.action === 'BUY' ? 'var(--green)' : 'var(--red)' }}>{t.action}</span>
-                <span style={{ fontSize: 12, color: 'var(--text)' }}>@ {Number(t.entry).toFixed(2)}</span>
+          {opens.map(t => {
+            const openPnl = Number(t.open_pnl || 0);
+            const isV75 = t.symbol?.includes('Volatility') || t.symbol === 'V75';
+            return (
+              <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span className="mono" style={{ fontSize: 12, fontWeight: 700, color: t.action === 'BUY' ? 'var(--green)' : 'var(--red)' }}>{t.action}</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: isV75 ? '#a78bfa' : 'var(--gold)' }}>{isV75 ? 'V75' : 'XAUUSD'}</span>
+                  <span style={{ fontSize: 12, color: 'var(--text)' }}>@ {Number(t.entry).toFixed(isV75 ? 3 : 2)}</span>
+                </div>
+                <span className="mono" style={{ fontSize: 12, fontWeight: 700, color: openPnl >= 0 ? 'var(--green)' : 'var(--red)' }}>
+                  {openPnl >= 0 ? '+' : '−'}{fmtRp(openPnl)}
+                </span>
               </div>
-              <span className="mono" style={{ fontSize: 12, fontWeight: 700, color: Number(t.open_pnl || 0) >= 0 ? 'var(--green)' : 'var(--red)' }}>
-                {Number(t.open_pnl || 0) >= 0 ? '+' : ''}${Number(t.open_pnl || 0).toFixed(2)}
-              </span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

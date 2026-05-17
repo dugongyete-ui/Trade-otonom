@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import type { Signal } from '../types';
 
+function fmtRp(value: number): string {
+  const abs = Math.abs(value);
+  const sign = value >= 0 ? '+' : '−';
+  return `${sign}Rp ${abs.toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+}
+
 function CopyBtn({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   return (
@@ -33,7 +39,7 @@ function Row({ label, value, gold }: { label: string; value: string; gold?: bool
 
 const MT5_STEPS = [
   'Buka MetaTrader 5 di PC / HP',
-  'Klik kanan chart XAUUSD → Trading → New Order',
+  'Klik kanan chart sesuai simbol AI → Trading → New Order',
   'Isi semua field sesuai signal di atas',
   'Klik "Buy by Market" atau "Sell by Market"',
   'Pasang SL & TP setelah order terisi',
@@ -56,13 +62,18 @@ export function CopyTradePanel({ signal }: { signal: Signal }) {
   }
 
   const action = display.action;
-  const entry = Number(display.entry).toFixed(2);
-  const sl    = Number(display.sl).toFixed(2);
-  const tp    = Number(display.tp).toFixed(2);
-  const lot   = activeSignal ? Number(activeSignal.lot).toFixed(2) : '0.01';
-  const den   = Math.abs(Number(entry) - Number(sl));
-  const rr    = den > 0 ? (Math.abs(Number(tp) - Number(entry)) / den).toFixed(2) : '—';
+  const isV75  = display.symbol?.includes('Volatility') || display.symbol === 'V75';
+  const decimals = isV75 ? 3 : 2;
+  const entry  = Number(display.entry).toFixed(decimals);
+  const sl     = Number(display.sl).toFixed(decimals);
+  const tp     = Number(display.tp).toFixed(decimals);
+  const lot    = activeSignal ? Number(activeSignal.lot).toFixed(2) : '0.01';
+  const den    = Math.abs(Number(entry) - Number(sl));
+  const rr     = den > 0 ? (Math.abs(Number(tp) - Number(entry)) / den).toFixed(2) : '—';
   const aColor = action === 'BUY' ? 'var(--green)' : action === 'SELL' ? 'var(--red)' : 'var(--text-2)';
+
+  const symbolLabel = isV75 ? 'Volatility 75' : 'XAUUSD';
+  const symbolColor = isV75 ? '#a78bfa' : 'var(--gold)';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -83,7 +94,7 @@ export function CopyTradePanel({ signal }: { signal: Signal }) {
       {/* Signal card */}
       <div className="card" style={{ padding: '14px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <span className="mono" style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)' }}>XAUUSD</span>
+          <span className="mono" style={{ fontSize: 15, fontWeight: 800, color: symbolColor }}>{symbolLabel}</span>
           <span style={{
             padding: '4px 13px', borderRadius: 20, fontSize: 12, fontWeight: 800,
             fontFamily: 'JetBrains Mono, monospace', letterSpacing: '.06em',
@@ -109,7 +120,7 @@ export function CopyTradePanel({ signal }: { signal: Signal }) {
         <div className="card" style={{ padding: '12px 16px' }}>
           <div className="label" style={{ marginBottom: 5 }}>Open PnL</div>
           <div className="mono" style={{ fontSize: 22, fontWeight: 800, color: Number(activeSignal.openPnl) >= 0 ? 'var(--green)' : 'var(--red)' }}>
-            {Number(activeSignal.openPnl) >= 0 ? '+' : ''}${Number(activeSignal.openPnl).toFixed(2)}
+            {fmtRp(Number(activeSignal.openPnl))}
           </div>
         </div>
       )}

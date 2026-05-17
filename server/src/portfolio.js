@@ -1,6 +1,6 @@
 import { query } from './db.js';
 
-const INITIAL_BALANCE = 10000;
+const INITIAL_BALANCE = 1000000;
 
 export async function getPortfolioStats() {
   const tradesRes = await query(`SELECT * FROM trades ORDER BY open_time DESC`);

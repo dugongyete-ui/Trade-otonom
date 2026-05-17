@@ -9,9 +9,9 @@ import { TradeHistoryTable } from './components/TradeHistoryTable';
 import type { AIDecision, PortfolioStats, Signal, Trade, MarketStatus, DerivMarketStatus } from './types';
 
 const DEFAULT_PORTFOLIO: PortfolioStats = {
-  balance: 10000, equity: 10000, openPnl: 0, winRate: 0,
+  balance: 1000000, equity: 1000000, openPnl: 0, winRate: 0,
   maxDrawdown: 0, totalTrades: 0, openTrades: 0,
-  equityHistory: [{ time: 'Start', value: 10000 }],
+  equityHistory: [{ time: 'Start', value: 1000000 }],
 };
 const DEFAULT_SIGNAL: Signal = { hasSignal: false, lastDecision: null };
 const PAGE_SIZE = 15;

@@ -1,12 +1,28 @@
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from 'recharts';
 import type { PortfolioStats } from '../types';
 
+const INITIAL_BALANCE = 1_000_000;
+
+function fmtRp(value: number, showSign = false): string {
+  const abs = Math.abs(value);
+  const formatted = abs.toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  const sign = showSign ? (value >= 0 ? '+' : '−') : '';
+  return `${sign}Rp ${formatted}`;
+}
+
+function fmtRpSmall(value: number): string {
+  const abs = Math.abs(value);
+  const formatted = abs.toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  const sign = value >= 0 ? '+' : '−';
+  return `${sign}Rp ${formatted}`;
+}
+
 const ChartTip = ({ active, payload }: { active?: boolean; payload?: Array<{ value: number }> }) => {
   if (!active || !payload?.length) return null;
   return (
     <div style={{ background: 'var(--bg-card-2)', border: '1px solid var(--border-2)', borderRadius: 8, padding: '4px 10px' }}>
       <span className="mono" style={{ fontSize: 11, color: 'var(--gold)', fontWeight: 700 }}>
-        ${payload[0].value.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+        {fmtRp(payload[0].value)}
       </span>
     </div>
   );
@@ -16,7 +32,7 @@ function Stat({ label, value, color, sub }: { label: string; value: string; colo
   return (
     <div style={{ background: 'var(--bg-card-2)', border: '1px solid var(--border)', borderRadius: 10, padding: '11px 13px' }}>
       <div className="label" style={{ marginBottom: 6 }}>{label}</div>
-      <div className="mono" style={{ fontSize: 15, fontWeight: 700, color: color || 'var(--text)', letterSpacing: '-.01em', lineHeight: 1 }}>
+      <div className="mono" style={{ fontSize: 14, fontWeight: 700, color: color || 'var(--text)', letterSpacing: '-.01em', lineHeight: 1 }}>
         {value}
       </div>
       {sub && <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 4 }}>{sub}</div>}
@@ -25,11 +41,11 @@ function Stat({ label, value, color, sub }: { label: string; value: string; colo
 }
 
 export function PortfolioPanel({ stats }: { stats: PortfolioStats }) {
-  const START = 10000;
-  const ret = ((stats.balance - START) / START) * 100;
-  const profit = stats.balance >= START;
-  const pnlPos = stats.openPnl >= 0;
+  const ret = ((stats.balance - INITIAL_BALANCE) / INITIAL_BALANCE) * 100;
+  const profit  = stats.balance >= INITIAL_BALANCE;
+  const pnlPos  = stats.openPnl >= 0;
   const chartColor = profit ? 'var(--green)' : 'var(--red)';
+  const totalPnl = stats.balance - INITIAL_BALANCE;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -41,65 +57,73 @@ export function PortfolioPanel({ stats }: { stats: PortfolioStats }) {
           background: `radial-gradient(ellipse at top right, ${profit ? 'rgba(0,214,143,.05)' : 'rgba(245,54,92,.05)'} 0%, transparent 65%)`,
         }} />
         <div className="label" style={{ marginBottom: 6 }}>Total Ekuitas</div>
-        <div className="mono" style={{ fontSize: 26, fontWeight: 800, color: 'var(--text)', letterSpacing: '-.03em', lineHeight: 1 }}>
-          ${stats.equity.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+        <div className="mono" style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', letterSpacing: '-.03em', lineHeight: 1 }}>
+          {fmtRp(stats.equity)}
         </div>
         <div style={{ fontSize: 12, marginTop: 5, fontWeight: 600, color: profit ? 'var(--green)' : 'var(--red)' }}>
           {ret >= 0 ? '+' : ''}{ret.toFixed(2)}% dari modal awal
         </div>
 
+        {/* Mini chart */}
         {stats.equityHistory && stats.equityHistory.length > 1 && (
-          <div style={{ marginTop: 14 }}>
-            <ResponsiveContainer width="100%" height={50}>
-              <AreaChart data={stats.equityHistory} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
+          <div style={{ height: 48, marginTop: 14 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={stats.equityHistory} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
                 <defs>
-                  <linearGradient id="eq" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={chartColor} stopOpacity={0.22} />
-                    <stop offset="100%" stopColor={chartColor} stopOpacity={0} />
+                  <linearGradient id="eqGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={chartColor} stopOpacity={0.2} />
+                    <stop offset="95%" stopColor={chartColor} stopOpacity={0} />
                   </linearGradient>
                 </defs>
+                <Area type="monotone" dataKey="value" stroke={chartColor} strokeWidth={1.5} fill="url(#eqGrad)" dot={false} />
                 <Tooltip content={<ChartTip />} />
-                <Area type="monotone" dataKey="value" stroke={chartColor} strokeWidth={1.5} fill="url(#eq)" dot={false} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         )}
       </div>
 
-      {/* Stats 2×2 */}
+      {/* Stats grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-        <Stat label="Balance" value={`$${stats.balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}`} />
+        <Stat label="Balance" value={fmtRp(stats.balance)} />
         <Stat
           label="Open PnL"
-          value={`${pnlPos ? '+' : ''}$${stats.openPnl.toFixed(2)}`}
-          color={pnlPos ? 'var(--green)' : stats.openPnl < 0 ? 'var(--red)' : 'var(--text-2)'}
+          value={fmtRpSmall(stats.openPnl)}
+          color={pnlPos ? 'var(--green)' : stats.openPnl < 0 ? 'var(--red)' : 'var(--text)'}
         />
         <Stat
           label="Win Rate"
           value={`${(stats.winRate * 100).toFixed(1)}%`}
           sub={`${stats.totalTrades} trades`}
-          color={stats.winRate >= 0.5 ? 'var(--green)' : 'var(--text-2)'}
+          color={stats.winRate >= 0.5 ? 'var(--green)' : stats.winRate > 0 ? 'var(--gold)' : undefined}
         />
         <Stat
           label="Max Drawdown"
           value={`${(stats.maxDrawdown * 100).toFixed(2)}%`}
-          color={stats.maxDrawdown < 0.1 ? 'var(--text-2)' : 'var(--red)'}
+          sub={`${stats.totalTrades} trades`}
+          color={stats.maxDrawdown > 0.1 ? 'var(--red)' : stats.maxDrawdown > 0.05 ? 'var(--gold)' : undefined}
         />
       </div>
 
-      {/* Open / Closed positions */}
-      <div className="card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 0 }}>
-        <div style={{ flex: 1, textAlign: 'center' }}>
-          <div className="label" style={{ marginBottom: 5 }}>Posisi Open</div>
-          <div className="mono" style={{ fontSize: 20, fontWeight: 800, color: stats.openTrades > 0 ? 'var(--gold)' : 'var(--text-3)' }}>
-            {stats.openTrades}
+      {/* Total P&L card */}
+      <div className="card" style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <div className="label" style={{ marginBottom: 4 }}>Total P&amp;L dari Modal Awal</div>
+          <div className="mono" style={{ fontSize: 18, fontWeight: 800, color: totalPnl >= 0 ? 'var(--green)' : 'var(--red)', letterSpacing: '-.02em' }}>
+            {fmtRpSmall(totalPnl)}
           </div>
         </div>
-        <div className="divider" style={{ height: 32 }} />
-        <div style={{ flex: 1, textAlign: 'center' }}>
-          <div className="label" style={{ marginBottom: 5 }}>Total Closed</div>
-          <div className="mono" style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)' }}>
-            {stats.totalTrades}
+        <div style={{ textAlign: 'right' }}>
+          <div className="label" style={{ marginBottom: 4 }}>Posisi / Closed</div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <div style={{ textAlign: 'center' }}>
+              <div className="mono" style={{ fontSize: 20, fontWeight: 800, color: 'var(--gold)' }}>{stats.openTrades}</div>
+              <div style={{ fontSize: 9, color: 'var(--text-3)', fontWeight: 600, textTransform: 'uppercase' }}>Open</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div className="mono" style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-2)' }}>{stats.totalTrades}</div>
+              <div style={{ fontSize: 9, color: 'var(--text-3)', fontWeight: 600, textTransform: 'uppercase' }}>Closed</div>
+            </div>
           </div>
         </div>
       </div>
