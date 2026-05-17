@@ -71,7 +71,7 @@ function SessionCard({ name, session }: { name: string; session: { trades: numbe
       </div>
       {session.trades > 0 && (
         <div style={{ fontSize: 9, color: 'var(--text-3)', marginTop: 3 }}>
-          {session.trades} {L.trades} · {(session.winRate * 100).toFixed(0)}% WR
+          {session.trades} {L.trades} · {(session.winRate * 100).toFixed(0)}% menang
         </div>
       )}
     </div>
@@ -219,13 +219,13 @@ export function PortfolioPanel({ stats, loading }: { stats: PortfolioStats; load
         <Stat
           label={L.winRate}
           value={`${(stats.winRate * 100).toFixed(1)}%`}
-          sub={`${stats.totalTrades} trades`}
+          sub={`${stats.totalTrades} perdagangan`}
           color={stats.winRate >= 0.5 ? 'var(--green)' : stats.winRate > 0 ? 'var(--gold)' : undefined}
         />
         <Stat
           label={L.maxDrawdown}
           value={`${(stats.maxDrawdown * 100).toFixed(2)}%`}
-          sub={`${stats.totalTrades} trades`}
+          sub={`${stats.totalTrades} perdagangan`}
           color={stats.maxDrawdown > 0.1 ? 'var(--red)' : stats.maxDrawdown > 0.05 ? 'var(--gold)' : undefined}
         />
       </div>

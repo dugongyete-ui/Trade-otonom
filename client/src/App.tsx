@@ -119,15 +119,25 @@ export default function App() {
     }
     if (type === 'portfolio_update') setPortfolio(data as PortfolioStats);
     if (type === 'trade_update')    { setIsThinking(false); refetchTrades(); refetchSignal(); }
+    if (type === 'price_tick') {
+      const d = data as { symbol: string; price: number; epoch?: number };
+      setDerivStatus(prev => {
+        const activeSymbol = prev.activeSymbol || 'XAUUSD';
+        if (d.symbol === activeSymbol || d.symbol === 'V75' && activeSymbol === 'V75' || d.symbol === 'XAUUSD' && activeSymbol === 'XAUUSD') {
+          return { ...prev, currentPrice: d.price, isConnected: true };
+        }
+        return prev;
+      });
+    }
     if (type === 'market_status') {
       const d = data as { status: string; isConnected: boolean; currentPrice: number | null; activeSymbol?: string; xauusdStatus?: string; aiPaused?: boolean };
-      setDerivStatus({
+      setDerivStatus(prev => ({
         status: d.status as DerivMarketStatus['status'],
         isConnected: d.isConnected,
-        currentPrice: d.currentPrice,
-        activeSymbol: (d.activeSymbol as DerivMarketStatus['activeSymbol']) || 'XAUUSD',
-        xauusdStatus: (d.xauusdStatus as DerivMarketStatus['xauusdStatus']) || 'unknown',
-      });
+        currentPrice: d.currentPrice ?? prev.currentPrice,
+        activeSymbol: (d.activeSymbol as DerivMarketStatus['activeSymbol']) || prev.activeSymbol,
+        xauusdStatus: (d.xauusdStatus as DerivMarketStatus['xauusdStatus']) || prev.xauusdStatus,
+      }));
       if (d.aiPaused !== undefined) setAiPaused(d.aiPaused);
     }
   }, [lastMessage, refetchSignal, refetchTrades]);

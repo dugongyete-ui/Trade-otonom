@@ -193,9 +193,9 @@ export function PriceChart({ currentPrice, activeSymbol = 'XAUUSD', signal }: Pr
         </div>
         {signal?.hasSignal && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 8, fontWeight: 600 }}>
-            <span style={{ color: 'var(--gold)' }}>── Entry</span>
-            <span style={{ color: 'var(--green)' }}>── TP</span>
-            <span style={{ color: 'var(--red)' }}>── SL</span>
+            <span style={{ color: 'var(--gold)' }}>── Harga Entry</span>
+            <span style={{ color: 'var(--green)' }}>── Batas Untung</span>
+            <span style={{ color: 'var(--red)' }}>── Batas Rugi</span>
           </div>
         )}
       </div>

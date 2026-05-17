@@ -28,6 +28,9 @@ let ws               = null;
 let isConnected      = false;
 let reconnectTimer   = null;
 let xauusdCheckTimer = null;
+let tickCallback     = null;
+
+export function setTickCallback(fn) { tickCallback = fn; }
 let pendingResolvers = new Map();
 let reqId            = 1;
 
@@ -201,6 +204,9 @@ export function connectDeriv() {
         const sym = msg.tick.symbol;
         if (sym === XAUUSD_SYM) { xauusdPrice = msg.tick.quote; xauusdStatus = 'open'; }
         else if (sym === V75_SYM) { v75Price = msg.tick.quote; }
+        if (tickCallback) {
+          try { tickCallback({ symbol: sym === V75_SYM ? 'V75' : 'XAUUSD', price: msg.tick.quote, epoch: msg.tick.epoch }); } catch {}
+        }
       }
 
       if (msg.msg_type === 'ohlc' && msg.ohlc) {

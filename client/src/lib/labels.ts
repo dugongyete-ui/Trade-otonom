@@ -11,9 +11,9 @@ export const L = {
   winRate: 'Tingkat Kemenangan',
   maxDrawdown: 'Penarikan Maksimum',
   totalPnlFromCapital: 'Total P&L dari Modal Awal',
-  positionClosed: 'Posisi / Closed',
+  positionClosed: 'Posisi / Selesai',
   open: 'Buka',
-  closed: 'Tutup',
+  closed: 'Selesai',
 
   sessionAsia: 'Sesi Asia',
   sessionLondon: 'Sesi London',
@@ -31,11 +31,11 @@ export const L = {
   analysisAI: 'Analisis AI',
   confidence: 'Keyakinan',
 
-  entry: 'Entry',
-  stopLoss: 'Stop Loss',
-  takeProfit: 'Take Profit',
+  entry: 'Harga Entry',
+  stopLoss: 'Batas Rugi',
+  takeProfit: 'Batas Untung',
   lotSize: 'Ukuran Lot',
-  riskReward: 'Risk / Reward',
+  riskReward: 'Rasio Risiko',
   openPnlLabel: 'Laba/Rugi Terbuka',
   howToEnterMT5: 'Cara Entry di MT5',
 

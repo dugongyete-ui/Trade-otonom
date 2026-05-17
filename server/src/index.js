@@ -6,7 +6,7 @@ import { WebSocketServer } from 'ws';
 import { initSchema } from './schema.js';
 import routes, { broadcastSSE } from './routes.js';
 import { startTradingLoop, setBroadcast } from './tradingLoop.js';
-import { connectDeriv, getActiveMarketData, getActiveSymbol, getXAUUSDStatus } from './derivService.js';
+import { connectDeriv, getActiveMarketData, getActiveSymbol, getXAUUSDStatus, setTickCallback } from './derivService.js';
 import { getIsAIPaused, setIsAIPaused } from './aiState.js';
 
 const app  = express();
@@ -76,6 +76,11 @@ function broadcast(message) {
 }
 
 setBroadcast(broadcast);
+
+// Forward every Deriv tick directly to SSE/WS clients (sub-second latency)
+setTickCallback(({ symbol, price, epoch }) => {
+  broadcast({ type: 'price_tick', data: { symbol, price, epoch } });
+});
 
 async function main() {
   try {

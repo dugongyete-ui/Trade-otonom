@@ -106,21 +106,21 @@ export function StatisticsPanel() {
           <MetricCard
             label={L.profitFactor}
             value={pf}
-            sub={stats.totalTrades > 0 ? `${stats.wins}M / ${stats.losses}K` : undefined}
+            sub={stats.totalTrades > 0 ? `${stats.wins} menang / ${stats.losses} kalah` : undefined}
             color={profitFactorColor(stats.profitFactor)}
             icon={<TrendingUp size={12} />}
           />
           <MetricCard
             label={L.sharpeRatio}
             value={sr}
-            sub={stats.totalTrades > 0 ? `${stats.totalTrades} trades` : undefined}
+            sub={stats.totalTrades > 0 ? `${stats.totalTrades} perdagangan` : undefined}
             color={sharpeColor(stats.sharpeRatio)}
             icon={<Activity size={12} />}
           />
           <MetricCard
             label={L.maxConsecLoss}
             value={cl}
-            sub="beruntun"
+            sub="kerugian beruntun"
             color={consecLossColor(stats.maxConsecutiveLosses)}
             icon={<AlertTriangle size={12} />}
           />
