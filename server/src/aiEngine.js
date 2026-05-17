@@ -136,13 +136,13 @@ INSTRUKSI OUTPUT:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Respond with ONLY valid JSON — no markdown, no code fences, no prose:
 
-{"reflection":null,"symbol":"${isV75 ? 'Volatility 75 Index' : 'XAUUSD'}","strategy":"string","reasoning":"string (professional Indonesian per DzeckAi style)","action":"BUY|SELL|HOLD","entry":number,"sl":number,"tp":number,"lot":0.01,"confidence":number}
+{"reflection":null,"symbol":"${isV75 ? 'Volatility 75 Index' : 'XAUUSD'}","strategy":"string","reasoning":"string (professional Indonesian per DzeckAi style)","action":"BUY|SELL|HOLD","entry":number,"sl":number,"tp":number,"lot":0.1,"confidence":number}
 
 Rules:
 - reflection: null if no loss on last trade, or 2-3 sentence factual Indonesian analysis if SL_HIT
 - action HOLD: still fill entry/sl/tp with monitored levels
 - confidence: 0.0-1.0 per the CONFIDENCE MAPPING above
-- lot: always 0.01 (fixed for risk management)
+- lot: always 0.1 (fixed for risk management)
 ${isV75 ? '- SL/TP: Set reasonable levels based on V75 volatility (typical range 50-300 points from entry)' : '- SL/TP: Set reasonable levels based on XAUUSD volatility'}`;
 }
 
@@ -206,7 +206,7 @@ export async function runAIDecision(broadcast) {
       }
     }
 
-    const lot = parseFloat(parsed.lot) || 0.01;
+    const lot = parseFloat(parsed.lot) || 0.1;
     let tradeId = null;
 
     if (parsed.action !== 'HOLD') {
