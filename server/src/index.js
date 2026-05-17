@@ -4,6 +4,7 @@ import path from 'path';
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
 import { initSchema } from './schema.js';
+import { query } from './db.js';
 import routes, { broadcastSSE } from './routes.js';
 import { startTradingLoop, setBroadcast } from './tradingLoop.js';
 import { connectDeriv, getActiveMarketData, getActiveSymbol, getXAUUSDStatus, setTickCallback } from './derivService.js';
@@ -86,6 +87,13 @@ async function main() {
   try {
     await initSchema();
     console.log('[Server] Database schema ready');
+
+    // Cancel any stale OPEN trades left from previous session.
+    // This is a startup invariant — if it fails the trading loop must not start.
+    const stale = await query(`UPDATE trades SET status='CANCELLED', close_time=NOW() WHERE status='OPEN'`);
+    const staleCount = stale.rowCount || 0;
+    console.log(`[Server] ${staleCount} stale open trade(s) cancelled on startup`);
+
     server.listen(PORT, '0.0.0.0', () => {
       console.log(`[Server] DzeckAI Trader on port ${PORT} (${isProd ? 'production' : 'development'})`);
     });

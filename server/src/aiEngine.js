@@ -565,6 +565,22 @@ export function calcDynamicLot(balance, entry, sl, symbol, confidence = 0.70) {
 
 // ── AI Brain (Memori Strategi) ────────────────────────────────
 
+// ── Consecutive Loss Tracker ──────────────────────────────────
+
+export async function getConsecutiveLosses() {
+  try {
+    const res = await query(
+      `SELECT status FROM trades WHERE status IN ('TP_HIT','SL_HIT') ORDER BY close_time DESC LIMIT 10`
+    );
+    let count = 0;
+    for (const row of res.rows) {
+      if (row.status === 'SL_HIT') count++;
+      else break;
+    }
+    return count;
+  } catch { return 0; }
+}
+
 export async function loadAIBrain() {
   try {
     const res = await query(`SELECT strategy_doc FROM ai_brain ORDER BY id DESC LIMIT 1`);
@@ -703,7 +719,12 @@ ${(brain.risk_notes || []).map((r, i) => `  ${i+1}. ${r}`).join('\n') || '  (bel
       }
     } catch {}
 
-    const evolutionPrompt = `Anda adalah DzeckAI — agen trading otonom yang baru saja menutup sebuah posisi.
+    const currentConsecutiveLosses = await getConsecutiveLosses();
+    const lossStreakWarning = currentConsecutiveLosses >= 2
+      ? `\n⚠️ PERHATIAN KRITIS: Setelah pembaruan ini, Anda akan memiliki ${currentConsecutiveLosses} loss berturut-turut.\nFokus UTAMA: Identifikasi pola spesifik yang menyebabkan loss beruntun ini. Perbarui "avoid_conditions" dengan sangat spesifik.\nKurangi rules trading — lebih sedikit tapi lebih tepat. Prioritaskan PRESERVASI MODAL.\n`
+      : '';
+
+    const evolutionPrompt = `Anda adalah DzeckAI — agen trading otonom yang baru saja menutup sebuah posisi.${lossStreakWarning}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 OTAK STRATEGI ANDA SAAT INI (Evolusi ke-${evolCount})
@@ -947,7 +968,7 @@ function formatIndicatorsTable(ind) {
 ╚══════════════════╩═══════════════════════════════════════╝`;
 }
 
-async function buildPrompt(symbol, m5Candles, m15Candles, macro, lastTrade, balance, calculatedLot) {
+async function buildPrompt(symbol, m5Candles, m15Candles, macro, lastTrade, balance, calculatedLot, consecutiveLosses = 0) {
   const cfg = SYMBOL_CONFIG[symbol] || SYMBOL_CONFIG.XAUUSD;
   const isV75 = symbol === 'V75';
   const currentClose = m5Candles.length > 0
@@ -959,34 +980,49 @@ async function buildPrompt(symbol, m5Candles, m15Candles, macro, lastTrade, bala
 
   const brain = await loadAIBrain();
   let brainSection;
+
+  const lossAlert = consecutiveLosses >= 3
+    ? `\n🔴 PERINGATAN KRITIS: ${consecutiveLosses} LOSS BERTURUT-TURUT!\nAnda WAJIB HOLD kecuali ada konfluensi kuat ≥5 indikator yang satu arah.\nTinjau ulang kondisi yang harus dihindari dan JANGAN masuk pasar jika ragu.\n`
+    : consecutiveLosses >= 2
+    ? `\n🟡 WASPADA: ${consecutiveLosses} loss berturut-turut. Tingkatkan selektivitas — hanya masuk jika confidence ≥ 0.70 dan minimal 4 indikator konfirmasi.\n`
+    : consecutiveLosses === 1
+    ? `\n🟠 Catatan: Loss pada trade terakhir. Evaluasi kondisi sebelum entry berikutnya.\n`
+    : '';
+
   if (!brain || Object.keys(brain).length === 0) {
     brainSection = `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🧠 MEMORI STRATEGI ANDA SAAT INI
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Anda belum memiliki strategi — mulai dari nol dan temukan sendiri.
-Gunakan indikator teknikal di bawah untuk eksperimen pertama Anda.`;
+Gunakan indikator teknikal di bawah untuk eksperimen pertama Anda.
+${lossAlert}`;
   } else {
     const evolCount = brain.evolution_count || 0;
+    const winCount  = brain.win_count  || 0;
+    const lossCount = brain.loss_count || 0;
+    const totalTrades = winCount + lossCount;
+    const winRate   = totalTrades > 0 ? `${((winCount / totalTrades) * 100).toFixed(0)}%` : 'N/A';
     const rules    = (brain.rules || []).map((r, i) => `  ${i+1}. ${r}`).join('\n') || '  (belum ada)';
     const setups   = (brain.best_setups || []).map((r, i) => `  ${i+1}. ${r}`).join('\n') || '  (belum ada)';
     const avoid    = (brain.avoid_conditions || []).map((r, i) => `  ${i+1}. ${r}`).join('\n') || '  (belum ada)';
     const riskN    = (brain.risk_notes || []).map((r, i) => `  ${i+1}. ${r}`).join('\n') || '  (belum ada)';
     brainSection = `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🧠 MEMORI STRATEGI ANDA SAAT INI (${evolCount} evolusi)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🧠 MEMORI STRATEGI ANDA SAAT INI (${evolCount} evolusi | W:${winCount} L:${lossCount} | WR: ${winRate})
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${lossAlert}
 📌 ATURAN YANG SAYA TEMUKAN SENDIRI:
 ${rules}
 
 ✅ SETUP TERBAIK YANG TERBUKTI:
 ${setups}
 
-🚫 KONDISI YANG HARUS DIHINDARI:
+🚫 KONDISI YANG HARUS DIHINDARI — PERIKSA INI SEBELUM ENTRY:
 ${avoid}
 
 ⚠️ CATATAN MANAJEMEN RISIKO:
 ${riskN}
 
-PENTING: Aturan di atas adalah hasil penemuan Anda sendiri. Ikuti dan sempurnakan terus.`;
+PENTING: Aturan di atas adalah hasil penemuan Anda sendiri. Ikuti dan sempurnakan terus.
+Sebelum memutuskan BUY/SELL, cek kondisi "HARUS DIHINDARI" — jika terpenuhi, HOLD.`;
   }
 
   const lastTradeSection = lastTrade
@@ -1102,11 +1138,13 @@ export async function runAIDecision(broadcast) {
     let newsFilterResult = { blocked: false };
     if (activeSymbol === 'XAUUSD') newsFilterResult = checkNewsFilter();
 
+    const consecutiveLosses = await getConsecutiveLosses();
+
     const roughEntry = currentPrice || parseFloat(m5Candles[m5Candles.length - 1]?.close || 0) || 3000;
     const roughSL    = roughEntry - (activeSymbol === 'V75' ? 100 : 15);
     const suggestedLot = calcDynamicLot(currentBalance, roughEntry, roughSL, activeSymbol);
 
-    const prompt = await buildPrompt(activeSymbol, m5Candles, m15Candles, macro, lastTrade, currentBalance, suggestedLot);
+    const prompt = await buildPrompt(activeSymbol, m5Candles, m15Candles, macro, lastTrade, currentBalance, suggestedLot, consecutiveLosses);
 
     if (broadcast) broadcast({ type: 'ai_thinking', data: { status: 'thinking', activeSymbol, marketStatus, timestamp: new Date().toISOString() } });
 
@@ -1143,6 +1181,15 @@ export async function runAIDecision(broadcast) {
       parsed.reasoning = `Menunggu event ekonomi high-impact: ${newsFilterResult.eventName} (${newsFilterResult.eventDate} ${newsFilterResult.eventTime}). Saya tidak membuka posisi baru dalam window ±30 menit. ${parsed.reasoning}`;
     }
 
+    // Confidence threshold — block low-conviction entries, scale with loss streak
+    const minConfidence = consecutiveLosses >= 3 ? 0.75 : consecutiveLosses >= 2 ? 0.68 : 0.60;
+    if (parsed.action !== 'HOLD' && parsed.confidence < minConfidence) {
+      const prevAction = parsed.action;
+      parsed.action = 'HOLD';
+      parsed.reasoning = `[AI] Confidence ${(parsed.confidence * 100).toFixed(0)}% di bawah ambang minimum ${(minConfidence * 100).toFixed(0)}% (loss streak: ${consecutiveLosses}). Sinyal ${prevAction} ditahan — menunggu konfluensi lebih kuat. ${parsed.reasoning}`;
+      console.log(`[AI] Entry blocked — confidence ${parsed.confidence} < min ${minConfidence} (loss streak: ${consecutiveLosses})`);
+    }
+
     const dynamicLot = parsed.action !== 'HOLD'
       ? calcDynamicLot(currentBalance, parsed.entry, parsed.sl, activeSymbol, parsed.confidence)
       : suggestedLot;
@@ -1172,7 +1219,7 @@ export async function runAIDecision(broadcast) {
        parsed.confidence, parsed.reasoning, parsed.reflection || null, parsed.strategy]
     );
 
-    return { ...parsed, lot: dynamicLot, tradeId, activeSymbol, marketStatus, dataSource: 'deriv', newsFilter: newsFilterResult };
+    return { ...parsed, lot: dynamicLot, tradeId, activeSymbol, marketStatus, dataSource: 'deriv', newsFilter: newsFilterResult, consecutiveLosses, minConfidence };
   } catch (err) {
     console.error('[AI] Decision cycle error:', err.message);
     throw err;

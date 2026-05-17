@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { AreaChart, Area, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import type { PortfolioStats, SessionStats, SymbolStat } from '../types';
 import { L } from '../lib/labels';
 
@@ -221,28 +221,45 @@ export function PortfolioPanel({ stats, loading }: { stats: PortfolioStats; load
           ))}
         </div>
 
-        {/* Mini chart */}
+        {/* Equity curve chart */}
         {filteredHistory && filteredHistory.length > 1 && (
-          <div style={{ height: 52, marginTop: 6 }}>
+          <div style={{ height: 140, marginTop: 10 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={filteredHistory} margin={{ top: 2, right: 0, bottom: 2, left: 0 }}>
+              <AreaChart data={filteredHistory} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
                 <defs>
                   <linearGradient id="eqGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={chartColor} stopOpacity={0.2} />
-                    <stop offset="95%" stopColor={chartColor} stopOpacity={0} />
+                    <stop offset="5%" stopColor={chartColor} stopOpacity={0.35} />
+                    <stop offset="95%" stopColor={chartColor} stopOpacity={0.02} />
                   </linearGradient>
                 </defs>
+                <XAxis
+                  dataKey="time"
+                  tick={{ fontSize: 9, fill: 'var(--text-3)', fontFamily: 'inherit' }}
+                  tickLine={false}
+                  axisLine={false}
+                  interval="preserveStartEnd"
+                  minTickGap={40}
+                />
                 <YAxis
                   hide
                   domain={(() => {
                     const vals = filteredHistory.map(p => p.value);
                     const min = Math.min(...vals);
                     const max = Math.max(...vals);
-                    const pad = Math.max((max - min) * 0.005, max * 0.0005, 1);
+                    const range = max - min;
+                    const pad = Math.max(range * 0.08, max * 0.001, 1);
                     return [min - pad, max + pad];
                   })()}
                 />
-                <Area type="monotone" dataKey="value" stroke={chartColor} strokeWidth={1.5} fill="url(#eqGrad)" dot={false} />
+                <Area
+                  type="monotone"
+                  dataKey="value"
+                  stroke={chartColor}
+                  strokeWidth={2}
+                  fill="url(#eqGrad)"
+                  dot={false}
+                  activeDot={{ r: 4, fill: chartColor, strokeWidth: 0 }}
+                />
                 <Tooltip content={<ChartTip />} />
               </AreaChart>
             </ResponsiveContainer>
