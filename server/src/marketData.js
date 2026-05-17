@@ -1,6 +1,6 @@
 import { getDerivMarketData, getCurrentDerivPrice } from './derivService.js';
 
-let simPrice = 2320.50;
+let simPrice = 3320.50;
 
 function randomWalk(base, volatility) {
   return parseFloat((base + (Math.random() - 0.5) * volatility).toFixed(2));
