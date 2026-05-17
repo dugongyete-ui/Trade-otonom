@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createChart, ColorType, CrosshairMode, LineStyle, CandlestickSeries, LineSeries } from 'lightweight-charts';
 import type { Signal } from '../types';
+import { L } from '../lib/labels';
 
 interface Props {
   currentPrice: number | null;
@@ -66,7 +67,7 @@ export function PriceChart({ currentPrice, activeSymbol = 'XAUUSD', signal }: Pr
     });
 
     const entryLine = chart.addSeries(LineSeries, {
-      color: '#C9A84C',
+      color: '#3B82F6',
       lineWidth: 1,
       lineStyle: LineStyle.Dashed,
       lastValueVisible: true,
@@ -128,11 +129,11 @@ export function PriceChart({ currentPrice, activeSymbol = 'XAUUSD', signal }: Pr
     candlesRef.current = [];
     lastPriceRef.current = null;
     if (candleSeriesRef.current) {
-      try { candleSeriesRef.current.setData([]); } catch {}
+      try { candleSeriesRef.current.setData([]); } catch (e) { console.warn('[PriceChart] reset candle series:', e); }
     }
-    if (entryLineRef.current) { try { entryLineRef.current.setData([]); } catch {} }
-    if (tpLineRef.current)    { try { tpLineRef.current.setData([]);    } catch {} }
-    if (slLineRef.current)    { try { slLineRef.current.setData([]);    } catch {} }
+    if (entryLineRef.current) { try { entryLineRef.current.setData([]); } catch (e) { console.warn('[PriceChart] reset entry line:', e); } }
+    if (tpLineRef.current)    { try { tpLineRef.current.setData([]);    } catch (e) { console.warn('[PriceChart] reset tp line:', e);    } }
+    if (slLineRef.current)    { try { slLineRef.current.setData([]);    } catch (e) { console.warn('[PriceChart] reset sl line:', e);    } }
   }, [activeSymbol]);
 
   useEffect(() => {
@@ -159,7 +160,7 @@ export function PriceChart({ currentPrice, activeSymbol = 'XAUUSD', signal }: Pr
     try {
       candleSeriesRef.current.setData(candles as Parameters<typeof candleSeriesRef.current.setData>[0]);
       chartRef.current?.timeScale().scrollToRealTime();
-    } catch {}
+    } catch (e) { console.warn('[PriceChart] setData error:', e); }
   }, [currentPrice, isReady]);
 
   function drawSignalLines() {
@@ -177,13 +178,13 @@ export function PriceChart({ currentPrice, activeSymbol = 'XAUUSD', signal }: Pr
         entryLineRef.current.setData([{ time: t1, value: e }, { time: t2, value: e }] as Parameters<typeof entryLineRef.current.setData>[0]);
         tpLineRef.current.setData([{ time: t1, value: tp }, { time: t2, value: tp }] as Parameters<typeof tpLineRef.current.setData>[0]);
         slLineRef.current.setData([{ time: t1, value: sl }, { time: t2, value: sl }] as Parameters<typeof slLineRef.current.setData>[0]);
-      } catch {}
+      } catch (e) { console.warn('[PriceChart] signal line setData error:', e); }
     } else {
       try {
         entryLineRef.current.setData([]);
         tpLineRef.current.setData([]);
         slLineRef.current.setData([]);
-      } catch {}
+      } catch (e) { console.warn('[PriceChart] clear signal lines error:', e); }
     }
   }
 
@@ -198,7 +199,7 @@ export function PriceChart({ currentPrice, activeSymbol = 'XAUUSD', signal }: Pr
     <div className="card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--gold)', letterSpacing: '.1em', textTransform: 'uppercase' }}>Chart Harga Live</span>
+          <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--gold)', letterSpacing: '.1em', textTransform: 'uppercase' }}>{L.priceChart}</span>
           <span style={{ fontSize: 9, fontWeight: 700, color: symbolColor, background: isV75 ? 'rgba(139,92,246,.1)' : 'var(--gold-glow)', padding: '2px 7px', borderRadius: 5, border: `1px solid ${isV75 ? 'rgba(139,92,246,.25)' : 'rgba(201,168,76,.25)'}` }}>
             {activeSymbol}
           </span>
