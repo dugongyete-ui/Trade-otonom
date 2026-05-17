@@ -58,14 +58,24 @@ router.get('/trades', async (req, res) => {
     const page   = parseInt(req.query.page)  || 1;
     const limit  = parseInt(req.query.limit) || 15;
     const offset = (page - 1) * limit;
+    const symbol = req.query.symbol;
+
+    let symWhere = '';
+    if (symbol === 'V75') {
+      symWhere = `AND (t.symbol = 'V75' OR t.symbol LIKE '%Volatility%')`;
+    } else if (symbol === 'XAUUSD') {
+      symWhere = `AND t.symbol = 'XAUUSD'`;
+    }
+
     const result = await query(
       `SELECT t.*, d.reasoning_text AS reasoning, d.confidence
        FROM trades t
        LEFT JOIN ai_decisions d ON d.trade_id = t.id
+       WHERE 1=1 ${symWhere}
        ORDER BY t.open_time DESC LIMIT $1 OFFSET $2`,
       [limit, offset]
     );
-    const countRes = await query(`SELECT COUNT(*) FROM trades`);
+    const countRes = await query(`SELECT COUNT(*) FROM trades WHERE 1=1 ${symWhere}`);
     res.json({
       trades: result.rows,
       total: parseInt(countRes.rows[0].count),
@@ -136,7 +146,14 @@ router.get('/equity-history', async (req, res) => {
 // ── GET /api/ai-stats ─────────────────────────────────────────────
 router.get('/ai-stats', async (req, res) => {
   try {
-    const tradesRes = await query(`SELECT * FROM trades WHERE status != 'OPEN' ORDER BY close_time ASC`);
+    const symbol = req.query.symbol;
+    let symWhere = `WHERE status != 'OPEN'`;
+    if (symbol === 'V75') {
+      symWhere = `WHERE status != 'OPEN' AND (symbol = 'V75' OR symbol LIKE '%Volatility%')`;
+    } else if (symbol === 'XAUUSD') {
+      symWhere = `WHERE status != 'OPEN' AND symbol = 'XAUUSD'`;
+    }
+    const tradesRes = await query(`SELECT * FROM trades ${symWhere} ORDER BY close_time ASC`);
     const trades = tradesRes.rows;
 
     if (trades.length === 0) {
@@ -203,6 +220,45 @@ router.get('/ai-stats', async (req, res) => {
       grossProfit: parseFloat(grossProfit.toFixed(2)),
       grossLoss: parseFloat(grossLoss.toFixed(2)),
     });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── GET /api/ai-brain ─────────────────────────────────────────────
+router.get('/ai-brain', async (req, res) => {
+  try {
+    const result = await query(`SELECT strategy_doc, updated_at FROM ai_brain ORDER BY id DESC LIMIT 1`);
+    if (result.rows.length === 0) {
+      return res.json({ brain: null, updatedAt: null });
+    }
+    res.json({ brain: result.rows[0].strategy_doc, updatedAt: result.rows[0].updated_at });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── GET /api/strategy-evolution-log ──────────────────────────────
+router.get('/strategy-evolution-log', async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT sel.id, sel.trade_id, sel.trade_outcome, sel.change_summary, sel.created_at,
+              t.action AS trade_action, t.symbol AS trade_symbol, t.pnl AS trade_pnl
+       FROM strategy_evolution_log sel
+       LEFT JOIN trades t ON t.id = sel.trade_id
+       ORDER BY sel.created_at DESC LIMIT 20`
+    );
+    res.json(result.rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── GET /api/strategy-rules ────────────────────────────────────
+router.get('/strategy-rules', async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT id, rule_text, rule_category, times_applied, success_count, fail_count, success_rate,
+              first_seen_at, last_updated_at, is_active
+       FROM strategy_rules
+       ORDER BY times_applied DESC, success_rate DESC
+       LIMIT 50`
+    );
+    res.json(result.rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

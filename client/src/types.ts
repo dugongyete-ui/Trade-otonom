@@ -59,6 +59,16 @@ export interface SessionStats {
   'Off-hours'?: SessionStat;
 }
 
+export interface SymbolStat {
+  totalTrades: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  totalPnl: number;
+  maxDrawdown: number;
+  pnlHistory: Array<{ time: string; value: number; rawTime?: string }>;
+}
+
 export interface PortfolioStats {
   balance: number;
   equity: number;
@@ -69,6 +79,7 @@ export interface PortfolioStats {
   openTrades: number;
   equityHistory: Array<{ time: string; value: number; rawTime?: string }>;
   sessionStats?: SessionStats;
+  symbolStats?: { XAUUSD: SymbolStat; V75: SymbolStat };
 }
 
 export interface Signal {

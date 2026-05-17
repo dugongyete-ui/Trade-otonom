@@ -1,5 +1,5 @@
 import { query } from './db.js';
-import { runAIDecision } from './aiEngine.js';
+import { runAIDecision, runStrategyEvolution } from './aiEngine.js';
 import { getPortfolioStats, savePortfolioSnapshot } from './portfolio.js';
 import { getActiveMarketData, getActiveSymbol, getPipMultiplier, getCurrentDerivPrice } from './derivService.js';
 import { getIsAIPaused } from './aiState.js';
@@ -107,6 +107,19 @@ async function updateOpenTrades() {
       if (broadcast) {
         broadcast({ type: 'trade_update', data: { tradeId: trade.id, status, closePrice, pnl, action: trade.action, symbol: trade.symbol } });
       }
+
+      // Run strategy evolution asynchronously — AI learns from this trade
+      const closedTrade = { ...trade, status, close_price: closePrice, pnl };
+      setImmediate(async () => {
+        try {
+          const result = await runStrategyEvolution(closedTrade);
+          if (result && broadcast) {
+            broadcast({ type: 'strategy_evolved', data: { summary: result.summary, brain: result.brain, tradeOutcome: status, timestamp: new Date().toISOString() } });
+          }
+        } catch (err) {
+          console.error('[Loop] Strategy evolution error:', err.message);
+        }
+      });
     } else {
       await query(`UPDATE trades SET open_pnl=$1 WHERE id=$2`, [openPnl, trade.id]);
     }

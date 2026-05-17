@@ -91,21 +91,53 @@ function TradeCard({ trade }: { trade: Trade }) {
   );
 }
 
+type SymFilter = 'ALL' | 'XAUUSD' | 'V75';
+
 interface Props {
   trades: Trade[];
   loading?: boolean;
   page: number;
   totalPages: number;
   onPageChange: (p: number) => void;
+  symbolFilter?: SymFilter;
+  onSymbolFilterChange?: (s: SymFilter) => void;
 }
 
-export function TradeHistoryTable({ trades, loading, page, totalPages, onPageChange }: Props) {
+export function TradeHistoryTable({ trades, loading, page, totalPages, onPageChange, symbolFilter = 'ALL', onSymbolFilterChange }: Props) {
   const closed = trades.filter(t => t.status !== 'OPEN');
   const opens  = trades.filter(t => t.status === 'OPEN');
 
+  const SYM_OPTS: { key: SymFilter; label: string; color: string }[] = [
+    { key: 'ALL',    label: 'Semua',  color: 'var(--text-3)' },
+    { key: 'XAUUSD', label: 'XAUUSD ⭐', color: 'var(--gold)' },
+    { key: 'V75',    label: 'V75',    color: '#a78bfa' },
+  ];
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div className="label" style={{ padding: '0 2px' }}>{L.tradeHistory}</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2px' }}>
+        <div className="label">{L.tradeHistory}</div>
+        {onSymbolFilterChange && (
+          <div style={{ display: 'flex', gap: 3 }}>
+            {SYM_OPTS.map(o => (
+              <button
+                key={o.key}
+                data-testid={`btn-trade-sym-${o.key}`}
+                onClick={() => onSymbolFilterChange(o.key)}
+                style={{
+                  padding: '2px 7px', borderRadius: 5, fontSize: 9, fontWeight: 700, cursor: 'pointer',
+                  background: symbolFilter === o.key ? (o.key === 'XAUUSD' ? 'rgba(201,168,76,.1)' : o.key === 'V75' ? 'rgba(167,139,250,.1)' : 'var(--bg-card-2)') : 'transparent',
+                  border: `1px solid ${symbolFilter === o.key ? (o.key === 'XAUUSD' ? 'rgba(201,168,76,.3)' : o.key === 'V75' ? 'rgba(167,139,250,.3)' : 'var(--border-2)') : 'var(--border)'}`,
+                  color: symbolFilter === o.key ? o.color : 'var(--text-3)',
+                  transition: 'all .15s',
+                }}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       {opens.length > 0 && (
         <div style={{ background: 'var(--bg-card)', border: '1px solid rgba(0,214,143,.18)', borderRadius: 10, padding: '12px 14px' }}>

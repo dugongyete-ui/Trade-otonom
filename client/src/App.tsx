@@ -9,6 +9,7 @@ import { CopyTradePanel } from './components/CopyTradePanel';
 import { TradeHistoryTable } from './components/TradeHistoryTable';
 import { PriceChart } from './components/PriceChart';
 import { StatisticsPanel } from './components/StatisticsPanel';
+import { AIBrainPanel } from './components/AIBrainPanel';
 import { ToastContainer, type ToastItem } from './components/ToastNotification';
 import { L } from './lib/labels';
 import type { AIDecision, PortfolioStats, Signal, Trade, MarketStatus, DerivMarketStatus } from './types';
@@ -21,7 +22,7 @@ const DEFAULT_PORTFOLIO: PortfolioStats = {
 const DEFAULT_SIGNAL: Signal = { hasSignal: false, lastDecision: null };
 const PAGE_SIZE = 15;
 
-type Tab = 'portfolio' | 'feed' | 'signal' | 'history';
+type Tab = 'portfolio' | 'feed' | 'signal' | 'history' | 'brain';
 
 function NavIcon({ tab, active }: { tab: Tab; active: boolean }) {
   const c = active ? 'var(--gold)' : 'currentColor';
@@ -40,6 +41,13 @@ function NavIcon({ tab, active }: { tab: Tab; active: boolean }) {
   if (tab === 'signal') return (
     <svg {...p}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
   );
+  if (tab === 'brain') return (
+    <svg {...p}>
+      <path d="M9.5 2a2.5 2.5 0 0 1 5 0v.5a2.5 2.5 0 0 1-5 0V2z"/>
+      <path d="M4 9.5a2.5 2.5 0 0 1 2.5-2.5h11A2.5 2.5 0 0 1 20 9.5v5a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 14.5v-5z"/>
+      <path d="M8 13h8M8 10h8"/>
+    </svg>
+  );
   return (
     <svg {...p}>
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -52,6 +60,7 @@ function NavIcon({ tab, active }: { tab: Tab; active: boolean }) {
 const TABS: { tab: Tab; label: string }[] = [
   { tab: 'portfolio', label: L.portfolio },
   { tab: 'feed',      label: L.aiFeed   },
+  { tab: 'brain',     label: 'Otak AI'  },
   { tab: 'signal',    label: L.signal   },
   { tab: 'history',   label: L.history  },
 ];
@@ -61,6 +70,7 @@ export default function App() {
   const [activeTab, setActiveTab]   = useState<Tab>('feed');
   const [tradePage, setTradePage]   = useState(1);
   const [tradeTotal, setTradeTotal] = useState(0);
+  const [tradeSymbolFilter, setTradeSymbolFilter] = useState<'ALL' | 'XAUUSD' | 'V75'>('ALL');
   const [aiPaused, setAiPaused]     = useState(false);
   const [toasts, setToasts]         = useState<ToastItem[]>([]);
   const [derivStatus, setDerivStatus] = useState<DerivMarketStatus>({
@@ -69,17 +79,19 @@ export default function App() {
   });
 
   const { data: initPortfolio, refetch: refetchPortfolio, loading: portfolioLoading } = useApi<PortfolioStats>('/api/portfolio', DEFAULT_PORTFOLIO);
+  const tradeApiUrl = `/api/trades?page=${tradePage}&limit=${PAGE_SIZE}${tradeSymbolFilter !== 'ALL' ? `&symbol=${tradeSymbolFilter}` : ''}`;
   const { data: initTrades,    refetch: refetchTrades,    loading: tradesLoading    } = useApi<{ trades: Trade[]; total: number }>(
-    `/api/trades?page=${tradePage}&limit=${PAGE_SIZE}`, { trades: [], total: 0 }
+    tradeApiUrl, { trades: [], total: 0 }
   );
   const { data: initSignal,    refetch: refetchSignal,    loading: signalLoading  } = useApi<Signal>('/api/current-signal', DEFAULT_SIGNAL);
   const { data: initAiLog,                               loading: aiLogLoading   } = useApi<AIDecision[]>('/api/ai-log', []);
 
-  const [portfolio,  setPortfolio ] = useState<PortfolioStats>(DEFAULT_PORTFOLIO);
-  const [trades,     setTrades    ] = useState<Trade[]>([]);
-  const [signal,     setSignal    ] = useState<Signal>(DEFAULT_SIGNAL);
-  const [decisions,  setDecisions ] = useState<AIDecision[]>([]);
-  const [isThinking, setIsThinking] = useState(false);
+  const [portfolio,      setPortfolio    ] = useState<PortfolioStats>(DEFAULT_PORTFOLIO);
+  const [trades,         setTrades       ] = useState<Trade[]>([]);
+  const [signal,         setSignal       ] = useState<Signal>(DEFAULT_SIGNAL);
+  const [decisions,      setDecisions    ] = useState<AIDecision[]>([]);
+  const [isThinking,     setIsThinking   ] = useState(false);
+  const [lastEvolution,  setLastEvolution] = useState<{ summary: string; timestamp: string } | null>(null);
 
   useEffect(() => { if (initPortfolio?.balance)   setPortfolio(initPortfolio); }, [initPortfolio]);
   useEffect(() => { if (initTrades?.trades)        { setTrades(initTrades.trades); setTradeTotal(initTrades.total ?? 0); } }, [initTrades]);
@@ -92,6 +104,11 @@ export default function App() {
       .then(r => r.json())
       .then(d => setAiPaused(Boolean(d.aiPaused)))
       .catch(() => {});
+  }, []);
+
+  const handleSymbolFilterChange = useCallback((sym: 'ALL' | 'XAUUSD' | 'V75') => {
+    setTradeSymbolFilter(sym);
+    setTradePage(1);
   }, []);
 
   const refetchAll = useCallback(() => {
@@ -119,6 +136,10 @@ export default function App() {
     }
     if (type === 'portfolio_update') setPortfolio(data as PortfolioStats);
     if (type === 'trade_update')    { setIsThinking(false); refetchTrades(); refetchSignal(); }
+    if (type === 'strategy_evolved') {
+      const d = data as { summary: string; timestamp: string };
+      setLastEvolution({ summary: d.summary, timestamp: d.timestamp });
+    }
     if (type === 'price_tick') {
       const d = data as { symbol: string; price: number; epoch?: number };
       setDerivStatus(prev => {
@@ -211,9 +232,10 @@ export default function App() {
                 <StatisticsPanel />
               </div>
             )}
-            {tab === 'feed'      && <AIThinkingFeed decisions={decisions} isThinking={isThinking} loading={aiLogLoading} marketStatus={mktStatus} activeSymbol={activeSymbol} xauusdStatus={xauusdStatus} />}
-            {tab === 'signal'    && <CopyTradePanel signal={signal} loading={signalLoading} />}
-            {tab === 'history'   && <TradeHistoryTable trades={trades} loading={tradesLoading} page={tradePage} totalPages={totalPages} onPageChange={setTradePage} />}
+            {tab === 'feed'    && <AIThinkingFeed decisions={decisions} isThinking={isThinking} loading={aiLogLoading} marketStatus={mktStatus} activeSymbol={activeSymbol} xauusdStatus={xauusdStatus} />}
+            {tab === 'brain'   && <AIBrainPanel lastEvolution={lastEvolution} />}
+            {tab === 'signal'  && <CopyTradePanel signal={signal} loading={signalLoading} />}
+            {tab === 'history' && <TradeHistoryTable trades={trades} loading={tradesLoading} page={tradePage} totalPages={totalPages} onPageChange={setTradePage} symbolFilter={tradeSymbolFilter} onSymbolFilterChange={handleSymbolFilterChange} />}
           </div>
         ))}
       </div>
@@ -246,8 +268,9 @@ export default function App() {
           <AIThinkingFeed decisions={decisions} isThinking={isThinking} loading={aiLogLoading} marketStatus={mktStatus} activeSymbol={activeSymbol} xauusdStatus={xauusdStatus} />
         </div>
         <div className="dcol">
+          <AIBrainPanel lastEvolution={lastEvolution} />
           <CopyTradePanel signal={signal} loading={signalLoading} />
-          <TradeHistoryTable trades={trades} loading={tradesLoading} page={tradePage} totalPages={totalPages} onPageChange={setTradePage} />
+          <TradeHistoryTable trades={trades} loading={tradesLoading} page={tradePage} totalPages={totalPages} onPageChange={setTradePage} symbolFilter={tradeSymbolFilter} onSymbolFilterChange={handleSymbolFilterChange} />
         </div>
       </div>
 

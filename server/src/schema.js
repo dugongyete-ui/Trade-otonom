@@ -64,5 +64,39 @@ export async function initSchema() {
     )
   `);
 
+  await query(`
+    CREATE TABLE IF NOT EXISTS ai_brain (
+      id SERIAL PRIMARY KEY,
+      strategy_doc JSONB NOT NULL DEFAULT '{}',
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS strategy_evolution_log (
+      id SERIAL PRIMARY KEY,
+      trade_id INTEGER REFERENCES trades(id),
+      trade_outcome VARCHAR(20),
+      change_summary TEXT,
+      brain_snapshot JSONB,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS strategy_rules (
+      id SERIAL PRIMARY KEY,
+      rule_text TEXT NOT NULL,
+      rule_category VARCHAR(50) NOT NULL DEFAULT 'general',
+      times_applied INTEGER NOT NULL DEFAULT 0,
+      success_count INTEGER NOT NULL DEFAULT 0,
+      fail_count INTEGER NOT NULL DEFAULT 0,
+      success_rate DECIMAL(5, 4) NOT NULL DEFAULT 0,
+      first_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      last_updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      is_active BOOLEAN NOT NULL DEFAULT TRUE
+    )
+  `);
+
   console.log('[DB] Schema initialized');
 }

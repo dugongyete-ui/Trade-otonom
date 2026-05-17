@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { TrendingUp, Activity, AlertTriangle, Clock } from 'lucide-react';
 import { useApi } from '../hooks/useApi';
 import { L } from '../lib/labels';
+
+type SymFilter = 'ALL' | 'XAUUSD' | 'V75';
 
 interface AIStats {
   profitFactor: number | null;
@@ -77,7 +80,9 @@ function consecLossColor(v: number): string {
 }
 
 export function StatisticsPanel() {
-  const { data: stats, loading } = useApi<AIStats>('/api/ai-stats', DEFAULT_STATS);
+  const [symFilter, setSymFilter] = useState<SymFilter>('ALL');
+  const statsUrl = `/api/ai-stats${symFilter !== 'ALL' ? `?symbol=${symFilter}` : ''}`;
+  const { data: stats, loading } = useApi<AIStats>(statsUrl, DEFAULT_STATS);
 
   const pf = stats.profitFactor !== null ? stats.profitFactor.toFixed(2) : '—';
   const sr = stats.sharpeRatio !== null ? stats.sharpeRatio.toFixed(2) : '—';
@@ -86,10 +91,36 @@ export function StatisticsPanel() {
     ? `${stats.avgTradeDurationMinutes} ${L.minutes}`
     : '—';
 
+  const SYM_OPTS: { key: SymFilter; label: string }[] = [
+    { key: 'ALL',    label: 'Semua' },
+    { key: 'XAUUSD', label: 'XAUUSD' },
+    { key: 'V75',    label: 'V75' },
+  ];
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--gold)', letterSpacing: '.12em', textTransform: 'uppercase', padding: '0 2px' }}>
-        Statistik AI
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--gold)', letterSpacing: '.12em', textTransform: 'uppercase', padding: '0 2px' }}>
+          Statistik AI
+        </div>
+        <div style={{ display: 'flex', gap: 3 }}>
+          {SYM_OPTS.map(o => (
+            <button
+              key={o.key}
+              data-testid={`btn-stats-sym-${o.key}`}
+              onClick={() => setSymFilter(o.key)}
+              style={{
+                padding: '2px 7px', borderRadius: 5, fontSize: 9, fontWeight: 700, cursor: 'pointer',
+                background: symFilter === o.key ? 'var(--gold-glow)' : 'transparent',
+                border: `1px solid ${symFilter === o.key ? 'rgba(201,168,76,.3)' : 'var(--border)'}`,
+                color: symFilter === o.key ? 'var(--gold)' : 'var(--text-3)',
+                transition: 'all .15s',
+              }}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {loading ? (

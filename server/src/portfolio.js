@@ -2,6 +2,57 @@ import { query } from './db.js';
 
 const INITIAL_BALANCE = 1000000;
 
+function isV75Trade(t) {
+  return t.symbol === 'V75' || (t.symbol && String(t.symbol).includes('Volatility'));
+}
+
+function getSymbolTrades(trades, symbol) {
+  if (symbol === 'V75') return trades.filter(isV75Trade);
+  if (symbol === 'XAUUSD') return trades.filter(t => t.symbol === 'XAUUSD');
+  return trades;
+}
+
+function buildSymbolPnlHistory(symTrades) {
+  const history = [{ time: 'Awal', value: 0, rawTime: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString() }];
+  let running = 0;
+  const sorted = [...symTrades].reverse();
+  for (const t of sorted) {
+    running += parseFloat(t.pnl || 0);
+    history.push({
+      time: new Date(t.close_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+      value: parseFloat(running.toFixed(2)),
+      rawTime: t.close_time,
+    });
+  }
+  if (history.length < 2) history.push({ time: 'Sekarang', value: running, rawTime: new Date().toISOString() });
+  return history;
+}
+
+function computeSymbolStats(symClosed) {
+  const wins = symClosed.filter(t => t.status === 'TP_HIT').length;
+  const losses = symClosed.length - wins;
+  const totalPnl = parseFloat(symClosed.reduce((s, t) => s + parseFloat(t.pnl || 0), 0).toFixed(2));
+  const winRate = symClosed.length > 0 ? parseFloat((wins / symClosed.length).toFixed(4)) : 0;
+
+  let peak = 0; let maxDrawdown = 0; let running = 0;
+  for (const t of [...symClosed].reverse()) {
+    running += parseFloat(t.pnl || 0);
+    if (running > peak) peak = running;
+    const dd = peak > 0 ? (peak - running) / peak : 0;
+    if (dd > maxDrawdown) maxDrawdown = dd;
+  }
+
+  return {
+    totalTrades: symClosed.length,
+    wins,
+    losses,
+    winRate,
+    totalPnl,
+    maxDrawdown: parseFloat(maxDrawdown.toFixed(4)),
+    pnlHistory: buildSymbolPnlHistory(symClosed),
+  };
+}
+
 // Session definitions in WIB (UTC+7)
 // Asia:   00:00 - 07:59 WIB  → UTC 17:00 - 00:59
 // London: 14:00 - 19:59 WIB  → UTC 07:00 - 12:59
@@ -78,6 +129,11 @@ export async function getPortfolioStats() {
   const equityHistory = await buildEquityHistory(closedTrades);
   const sessionStats  = getSessionStats(closedTrades);
 
+  const symbolStats = {
+    XAUUSD: computeSymbolStats(getSymbolTrades(closedTrades, 'XAUUSD')),
+    V75:    computeSymbolStats(getSymbolTrades(closedTrades, 'V75')),
+  };
+
   return {
     balance,
     equity,
@@ -88,6 +144,7 @@ export async function getPortfolioStats() {
     openTrades: openTrades.length,
     equityHistory,
     sessionStats,
+    symbolStats,
   };
 }
 

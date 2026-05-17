@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
-import { AreaChart, Area, ResponsiveContainer, Tooltip } from 'recharts';
-import type { PortfolioStats, SessionStats } from '../types';
+import { AreaChart, Area, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
+import type { PortfolioStats, SessionStats, SymbolStat } from '../types';
 import { L } from '../lib/labels';
 
 const INITIAL_BALANCE = 1_000_000;
@@ -59,6 +59,47 @@ interface EquityPoint {
   time: string;
   value: number;
   rawTime?: string;
+}
+
+function SymbolStatCard({ symbol, stat, isPriority }: { symbol: 'XAUUSD' | 'V75'; stat: SymbolStat; isPriority: boolean }) {
+  const pnlPos = stat.totalPnl >= 0;
+  const wr = stat.winRate * 100;
+  const wrColor = wr >= 55 ? 'var(--green)' : wr >= 40 ? 'var(--gold)' : wr > 0 ? 'var(--red)' : 'var(--text-3)';
+  const symbolColor = symbol === 'XAUUSD' ? 'var(--gold)' : '#a78bfa';
+
+  return (
+    <div style={{
+      flex: 1, background: 'var(--bg-card-2)',
+      border: `1px solid ${isPriority ? 'rgba(201,168,76,.25)' : 'var(--border)'}`,
+      borderRadius: 10, padding: '10px 11px',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 }}>
+        <span style={{ fontSize: 11, fontWeight: 800, color: symbolColor, letterSpacing: '.03em' }}>
+          {symbol === 'XAUUSD' ? 'XAUUSD' : 'V75'}
+        </span>
+        {isPriority
+          ? <span style={{ fontSize: 8, fontWeight: 700, color: 'var(--gold)', background: 'rgba(201,168,76,.12)', border: '1px solid rgba(201,168,76,.25)', padding: '1px 5px', borderRadius: 4 }}>⭐ UTAMA</span>
+          : <span style={{ fontSize: 8, fontWeight: 700, color: 'var(--text-3)', background: 'var(--bg)', border: '1px solid var(--border)', padding: '1px 5px', borderRadius: 4 }}>CADANGAN</span>
+        }
+      </div>
+
+      {stat.totalTrades === 0 ? (
+        <div style={{ fontSize: 10, color: 'var(--text-3)', textAlign: 'center' as const, padding: '4px 0' }}>—</div>
+      ) : (
+        <>
+          <div className="mono" style={{ fontSize: 14, fontWeight: 800, color: pnlPos ? 'var(--green)' : 'var(--red)', lineHeight: 1, marginBottom: 5 }}>
+            {pnlPos ? '+' : '−'}Rp {Math.abs(stat.totalPnl).toLocaleString('id-ID', { minimumFractionDigits: 0 })}
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
+            <span style={{ fontSize: 9, color: wrColor, fontWeight: 700 }}>{stat.totalTrades > 0 ? `${wr.toFixed(0)}% WR` : '—'}</span>
+            <span style={{ fontSize: 9, color: 'var(--green)' }}>{stat.wins}W</span>
+            <span style={{ fontSize: 9, color: 'var(--red)' }}>{stat.losses}L</span>
+            <span style={{ fontSize: 9, color: 'var(--text-3)' }}>{stat.totalTrades} trade</span>
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 function SessionCard({ name, session }: { name: string; session: { trades: number; pnl: number; winRate: number } }) {
@@ -184,19 +225,48 @@ export function PortfolioPanel({ stats, loading }: { stats: PortfolioStats; load
         {filteredHistory && filteredHistory.length > 1 && (
           <div style={{ height: 52, marginTop: 6 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={filteredHistory} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+              <AreaChart data={filteredHistory} margin={{ top: 2, right: 0, bottom: 2, left: 0 }}>
                 <defs>
                   <linearGradient id="eqGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor={chartColor} stopOpacity={0.2} />
                     <stop offset="95%" stopColor={chartColor} stopOpacity={0} />
                   </linearGradient>
                 </defs>
+                <YAxis
+                  hide
+                  domain={(() => {
+                    const vals = filteredHistory.map(p => p.value);
+                    const min = Math.min(...vals);
+                    const max = Math.max(...vals);
+                    const pad = Math.max((max - min) * 0.005, max * 0.0005, 1);
+                    return [min - pad, max + pad];
+                  })()}
+                />
                 <Area type="monotone" dataKey="value" stroke={chartColor} strokeWidth={1.5} fill="url(#eqGrad)" dot={false} />
                 <Tooltip content={<ChartTip />} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         )}
+      </div>
+
+      {/* Per-symbol breakdown — always visible */}
+      <div>
+        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', letterSpacing: '.08em', textTransform: 'uppercase' as const, padding: '0 2px', marginBottom: 6 }}>
+          Per Instrumen
+        </div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <SymbolStatCard
+            symbol="XAUUSD"
+            stat={stats.symbolStats?.XAUUSD ?? { totalTrades: 0, wins: 0, losses: 0, winRate: 0, totalPnl: 0, maxDrawdown: 0, pnlHistory: [] }}
+            isPriority
+          />
+          <SymbolStatCard
+            symbol="V75"
+            stat={stats.symbolStats?.V75 ?? { totalTrades: 0, wins: 0, losses: 0, winRate: 0, totalPnl: 0, maxDrawdown: 0, pnlHistory: [] }}
+            isPriority={false}
+          />
+        </div>
       </div>
 
       {/* Session PnL cards */}
