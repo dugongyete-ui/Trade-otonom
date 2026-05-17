@@ -22,11 +22,12 @@ export default defineConfig({
         target: 'http://localhost:3001',
         changeOrigin: true,
       },
-      '/ws': {
+      // /appws avoids Vite HMR internal WebSocket path conflict
+      '/appws': {
         target: 'ws://localhost:3001',
         ws: true,
-        changeOrigin: true,
-      }
-    }
-  }
+        changeOrigin: false,
+      },
+    },
+  },
 });

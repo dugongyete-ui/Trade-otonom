@@ -5,6 +5,49 @@ import { getActiveMarketData, getActiveSymbol, getXAUUSDStatus } from './derivSe
 
 const router = express.Router();
 
+// ── SSE stream endpoint (/api/stream) ──────────────────────────────
+const sseClients = new Set();
+
+export function broadcastSSE(type, data) {
+  const line = `event: ${type}\ndata: ${JSON.stringify(data)}\n\n`;
+  for (const client of [...sseClients]) {
+    try { client.write(line); } catch { sseClients.delete(client); }
+  }
+}
+
+router.get('/stream', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+
+  sseClients.add(res);
+  console.log(`[SSE] Client connected (total: ${sseClients.size})`);
+
+  // Send initial market status immediately
+  try {
+    const data         = getActiveMarketData();
+    const activeSymbol = getActiveSymbol();
+    const xauusdStatus = getXAUUSDStatus();
+    res.write(`event: market_status\ndata: ${JSON.stringify({
+      status: data.marketStatus, isConnected: data.isConnected,
+      currentPrice: data.currentPrice, activeSymbol, xauusdStatus,
+    })}\n\n`);
+  } catch {}
+
+  // Keepalive ping every 15s to prevent proxy timeouts
+  const ping = setInterval(() => {
+    try { res.write(': ping\n\n'); } catch { clearInterval(ping); sseClients.delete(res); }
+  }, 15000);
+
+  req.on('close', () => {
+    clearInterval(ping);
+    sseClients.delete(res);
+    console.log(`[SSE] Client disconnected (total: ${sseClients.size})`);
+  });
+});
+
 router.get('/portfolio', async (req, res) => {
   try { res.json(await getPortfolioStats()); }
   catch (err) { res.status(500).json({ error: err.message }); }

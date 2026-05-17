@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useWebSocket } from './hooks/useWebSocket';
+import { useSSE } from './hooks/useSSE';
 import { useApi } from './hooks/useApi';
 import { Header } from './components/Header';
 import { PortfolioPanel } from './components/PortfolioPanel';
@@ -15,11 +15,6 @@ const DEFAULT_PORTFOLIO: PortfolioStats = {
 };
 const DEFAULT_SIGNAL: Signal = { hasSignal: false, lastDecision: null };
 const PAGE_SIZE = 15;
-
-function getWsUrl(): string {
-  const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  return `${proto}//${window.location.host}/ws`;
-}
 
 type Tab = 'portfolio' | 'feed' | 'signal' | 'history';
 
@@ -57,7 +52,7 @@ const TABS: { tab: Tab; label: string }[] = [
 ];
 
 export default function App() {
-  const { status: wsStatus, lastMessage } = useWebSocket(getWsUrl());
+  const { status: wsStatus, lastMessage } = useSSE('/api/stream');
   const [activeTab, setActiveTab]   = useState<Tab>('feed');
   const [tradePage, setTradePage]   = useState(1);
   const [tradeTotal, setTradeTotal] = useState(0);
@@ -116,17 +111,23 @@ export default function App() {
     return () => clearInterval(iv);
   }, [refetchAll]);
 
+  // Poll market status via REST every 3s as reliable fallback regardless of WS state
   useEffect(() => {
-    fetch('/api/market-status')
-      .then(r => r.json())
-      .then(d => setDerivStatus({
-        status: d.status,
-        isConnected: d.isConnected,
-        currentPrice: d.currentPrice,
-        activeSymbol: d.activeSymbol || 'XAUUSD',
-        xauusdStatus: d.xauusdStatus || 'unknown',
-      }))
-      .catch(() => {});
+    function fetchStatus() {
+      fetch('/api/market-status')
+        .then(r => r.json())
+        .then(d => setDerivStatus({
+          status:        d.status        as DerivMarketStatus['status'],
+          isConnected:   d.isConnected,
+          currentPrice:  d.currentPrice,
+          activeSymbol:  (d.activeSymbol  as DerivMarketStatus['activeSymbol'])  || 'XAUUSD',
+          xauusdStatus:  (d.xauusdStatus  as DerivMarketStatus['xauusdStatus'])  || 'unknown',
+        }))
+        .catch(() => {});
+    }
+    fetchStatus();
+    const iv = setInterval(fetchStatus, 3000);
+    return () => clearInterval(iv);
   }, []);
 
   const totalPages   = Math.max(1, Math.ceil(tradeTotal / PAGE_SIZE));
